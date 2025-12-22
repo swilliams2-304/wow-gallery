@@ -1,12 +1,53 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>WilliamsFamily304</title>
-  </head>
-  <body style="margin:0;background:#05060a;color:#e9eefc;font-family:system-ui;padding:48px">
-    <h1>WilliamsFamily304 ✅</h1>
-    <p>If you can see this, Cloudflare Pages is serving the site correctly.</p>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Williams Family Gallery</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="noise"></div>
+
+  <header class="hero">
+    <div class="badge">WILLIAMS FAMILY • GALLERY</div>
+
+    <h1 class="title">
+      <span class="glow blue">BLUE</span>
+      <span class="slash">•</span>
+      <span class="glow red">RED</span>
+      <span class="slash">•</span>
+      <span class="glow">BLACK</span>
+    </h1>
+
+    <p class="subtitle">
+      Smooth. Flashy. Fast. A cinematic gallery built on Cloudflare.
+    </p>
+
+    <div class="actions">
+      <a class="btn primary" href="#gallery">Enter</a>
+      <button class="btn ghost" id="shuffleBtn">Shuffle</button>
+    </div>
+
+    <div class="hint">Scroll ↓</div>
+  </header>
+
+  <main id="gallery" class="gallery-wrap">
+    <div class="section-title">
+      <h2>Featured</h2>
+      <p id="count">Loading…</p>
+    </div>
+
+    <div id="grid" class="grid"></div>
+  </main>
+
+  <div id="lightbox" class="lightbox" aria-hidden="true">
+    <button class="close" id="closeBtn" aria-label="Close">✕</button>
+    <img id="lightboxImg" alt="" />
+  </div>
+
+  <script src="app.js"></script>
+</body>
 </html>
+
