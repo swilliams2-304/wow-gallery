@@ -112,6 +112,26 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight") showNext();
 });
 
+// Swipe support (mobile)
+let touchStartX = null;
+
+lightboxImg.addEventListener("touchstart", (e) => {
+  touchStartX = e.changedTouches[0].clientX;
+}, { passive: true });
+
+lightboxImg.addEventListener("touchend", (e) => {
+  if (touchStartX === null) return;
+  const touchEndX = e.changedTouches[0].clientX;
+  const dx = touchEndX - touchStartX;
+  touchStartX = null;
+
+  // small deadzone so accidental touches don't flip photos
+  if (Math.abs(dx) < 40) return;
+
+  if (dx > 0) showPrev();  // swipe right
+  else showNext();         // swipe left
+}, { passive: true });
+
 async function init(){
   try{
     const res = await fetch(INDEX_URL, { cache: "no-store" });
