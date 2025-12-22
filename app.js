@@ -112,46 +112,28 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight") showNext();
 });
 
-// Swipe support (mobile)
+// Swipe support (mobile) - guarded so it can't break the page
 let touchStartX = null;
 
-lightboxImg.addEventListener("touchstart", (e) => {
-  touchStartX = e.changedTouches[0].clientX;
-}, { passive: true });
+if (lightboxImg) {
+  lightboxImg.addEventListener("touchstart", (e) => {
+    touchStartX = e.changedTouches[0].clientX;
+  }, { passive: true });
 
-lightboxImg.addEventListener("touchend", (e) => {
-  if (touchStartX === null) return;
+  lightboxImg.addEventListener("touchend", (e) => {
+    if (touchStartX === null) return;
 
-  const touchEndX = e.changedTouches[0].clientX;
-  const dx = touchEndX - touchStartX;
-  touchStartX = null;
+    const touchEndX = e.changedTouches[0].clientX;
+    const dx = touchEndX - touchStartX;
+    touchStartX = null;
 
-  // deadzone to prevent accidental flips
-  if (Math.abs(dx) < 40) return;
+    // deadzone to prevent accidental flips
+    if (Math.abs(dx) < 40) return;
 
-  if (dx > 0) showPrev();   // swipe right = previous
-  else showNext();          // swipe left = next
-}, { passive: true });
-
-// Swipe support (mobile)
-let touchStartX = null;
-
-lightboxImg.addEventListener("touchstart", (e) => {
-  touchStartX = e.changedTouches[0].clientX;
-}, { passive: true });
-
-lightboxImg.addEventListener("touchend", (e) => {
-  if (touchStartX === null) return;
-  const touchEndX = e.changedTouches[0].clientX;
-  const dx = touchEndX - touchStartX;
-  touchStartX = null;
-
-  // small deadzone so accidental touches don't flip photos
-  if (Math.abs(dx) < 40) return;
-
-  if (dx > 0) showPrev();  // swipe right
-  else showNext();         // swipe left
-}, { passive: true });
+    if (dx > 0) showPrev();
+    else showNext();
+  }, { passive: true });
+}
 
 async function init(){
   try{
