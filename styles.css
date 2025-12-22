@@ -337,5 +337,23 @@ body{
 
 .album-btn.active{
   background: linear-gradient(90deg, rgba(42,167,255,.32), rgba(255,45,58,.16));
+
+  #lightboxVideo{
+  display:none;
+  max-width: min(92vw, 1100px);
+  max-height: 78vh;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.65);
+  background: rgba(0,0,0,.35);
+}
+
+.lightbox.show #lightboxVideo.show-video{
+  display:block;
+}
+
+.lightbox.show #lightboxImg.hide-img{
+  display:none;
+}
+
   border-color: rgba(255,255,255,.18);
 }
