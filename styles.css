@@ -393,12 +393,12 @@ body{
 .hero{
   position: relative;
   overflow: hidden;
-  border-radius: 26px;
+  border-radius: 22px;
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(6, 8, 14, .65);
-  padding: clamp(1.2rem, 3vw, 2.1rem);
-  margin: 1.2rem 0 1.1rem;
-  box-shadow: 0 30px 120px rgba(0,0,0,.55);
+  padding: clamp(.9rem, 2.2vw, 1.4rem);
+  margin: .85rem 0 .75rem;
+  box-shadow: 0 22px 90px rgba(0,0,0,.45);
   transform: translateZ(0);
 }
 
