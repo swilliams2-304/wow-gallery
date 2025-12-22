@@ -293,3 +293,49 @@ body{
 @keyframes rise{
   to{ opacity:1; transform: translateY(0); }
 }
+
+.album-bar{
+  display:flex;
+  flex-direction:column;
+  gap:.6rem;
+  margin: 1.25rem 0 1.1rem;
+  padding: .9rem;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 18px;
+  background: rgba(10,14,24,.30);
+  backdrop-filter: blur(10px);
+}
+
+.album-title{
+  font-weight: 800;
+  letter-spacing: .08em;
+  font-size: .75rem;
+  opacity: .75;
+}
+
+.albums{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.55rem;
+}
+
+.album-btn{
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(10,14,24,.32);
+  color: rgba(233,238,252,.92);
+  padding: .6rem .85rem;
+  border-radius: 999px;
+  cursor:pointer;
+  font-weight: 750;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+
+.album-btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
+}
+
+.album-btn.active{
+  background: linear-gradient(90deg, rgba(42,167,255,.32), rgba(255,45,58,.16));
+  border-color: rgba(255,255,255,.18);
+}
