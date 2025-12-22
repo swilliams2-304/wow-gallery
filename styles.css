@@ -420,3 +420,110 @@ body{
   94%{ opacity: 0; }
   100%{ opacity: 0; }
 }
+/* ===========================
+   SOFT PIN GATE
+=========================== */
+.pin-gate{
+  position:fixed;
+  inset:0;
+  z-index:2000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 1rem;
+}
+
+.pin-backdrop{
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(1400px 800px at 20% 10%, rgba(42,167,255,.18), transparent 60%),
+    radial-gradient(1200px 700px at 80% 30%, rgba(255,45,58,.14), transparent 60%),
+    rgba(0,0,0,.82);
+  backdrop-filter: blur(8px);
+}
+
+.pin-card{
+  position:relative;
+  z-index:1;
+  width:min(460px, 100%);
+  padding: 1.2rem 1.2rem 1.1rem;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(6,8,14,.72);
+  box-shadow: 0 30px 120px rgba(0,0,0,.65);
+  text-align:center;
+}
+
+.pin-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:.55rem;
+  padding:.35rem .75rem;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  font-size:.72rem;
+  letter-spacing:.16em;
+  opacity:.92;
+}
+
+.pin-dot{ width:8px; height:8px; border-radius:50%; }
+.pin-dot.blue{ background: var(--blue); box-shadow: 0 0 18px rgba(42,167,255,.55); }
+.pin-dot.red{ background: var(--red); box-shadow: 0 0 18px rgba(255,45,58,.45); }
+
+.pin-title{
+  margin: .85rem 0 .15rem;
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.pin-sub{
+  margin: 0 0 .95rem;
+  color: rgba(233,238,252,.75);
+}
+
+.pin-form{
+  display:flex;
+  gap:.6rem;
+  justify-content:center;
+  align-items:center;
+}
+
+.pin-input{
+  width: 160px;
+  padding: .7rem .8rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(10,14,24,.35);
+  color: rgba(233,238,252,.95);
+  font-size: 1.05rem;
+  letter-spacing: .2em;
+  text-align:center;
+  outline:none;
+}
+
+.pin-input:focus{
+  border-color: rgba(42,167,255,.45);
+  box-shadow: 0 0 0 4px rgba(42,167,255,.12);
+}
+
+.pin-btn{
+  padding: .72rem .95rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 900;
+  color: rgba(233,238,252,.95);
+  background: linear-gradient(135deg, rgba(42,167,255,.95), rgba(255,45,58,.85));
+}
+
+.pin-msg{
+  min-height: 1.25rem;
+  margin-top: .75rem;
+  color: rgba(255,255,255,.82);
+}
+
+.pin-gate.hide{
+  display:none;
+}
