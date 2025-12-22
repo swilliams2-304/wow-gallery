@@ -7,6 +7,36 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Soft PIN Gate -->
+<div class="pin-gate" id="pinGate" aria-hidden="false">
+  <div class="pin-card">
+    <div class="pin-badge">
+      <span class="pin-dot blue"></span>
+      <span>WILLIAMS FAMILY</span>
+      <span class="pin-dot red"></span>
+    </div>
+
+    <h2 class="pin-title">Enter Passcode</h2>
+    <p class="pin-sub">This gallery is private.</p>
+
+    <form class="pin-form" id="pinForm">
+      <input
+        id="pinInput"
+        class="pin-input"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        placeholder="••••"
+        aria-label="Passcode"
+      />
+      <button class="pin-btn" type="submit">Unlock</button>
+    </form>
+
+    <div class="pin-msg" id="pinMsg"></div>
+  </div>
+
+  <div class="pin-backdrop" aria-hidden="true"></div>
+</div>
+
   <div class="bg"></div>
   <div class="noise"></div>
 
