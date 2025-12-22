@@ -573,6 +573,10 @@ shuffleBtn?.addEventListener("click", () => {
   render();
 });
 
+document.getElementById("enterBtn")?.addEventListener("click", () => {
+  document.getElementById("albums")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
 init();
 
 
