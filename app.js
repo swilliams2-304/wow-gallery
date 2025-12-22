@@ -32,12 +32,46 @@ const nextBtn = document.getElementById("nextBtn");
 // =====================
 // STATE
 // =====================
-let allItems = [];       // items returned by Worker for current album (images + videos)
-let mediaItems = [];     // filtered items we render + navigate
-let currentIndex = -1;   // index into mediaItems
+let allItems = [];
+let mediaItems = [];
+let currentIndex = -1;
 let currentAlbum = null;
 
-let adminToken = null;  // only used in admin mode
+let adminToken = null;
+
+// =====================
+// URL helpers (deep links)
+// =====================
+function getRequestedAlbumFromUrl() {
+  const u = new URL(location.href);
+  const a = u.searchParams.get("album");
+  return a ? a.trim() : null;
+}
+
+function setAlbumInUrl(albumKey) {
+  const u = new URL(location.href);
+  u.searchParams.set("album", albumKey);
+  // keep admin mode if it was on
+  if (IS_ADMIN) u.searchParams.set("admin", "1");
+  history.replaceState({}, "", u.toString());
+}
+
+async function copyCurrentAlbumLink() {
+  if (!currentAlbum) return;
+  const u = new URL(location.href);
+  u.searchParams.set("album", currentAlbum);
+  if (IS_ADMIN) u.searchParams.set("admin", "1");
+
+  const text = u.toString();
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("Album link copied to clipboard ✅");
+  } catch {
+    // fallback if clipboard is blocked
+    prompt("Copy this album link:", text);
+  }
+}
 
 // =====================
 // HELPERS
@@ -77,12 +111,6 @@ function setActiveAlbumButton(name) {
   });
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
-  }[c]));
-}
-
 // =====================
 // GRID RENDER
 // =====================
@@ -94,7 +122,6 @@ function render() {
   mediaItems.forEach((it, idx) => {
     const mediaUrl = `${R2_BASE_URL}/${it.src}`;
 
-    // If it's a video and Worker provided a poster key, use poster for tile
     const posterUrl = (isVideoItem(it) && it.poster)
       ? `${R2_BASE_URL}/${it.poster}`
       : null;
@@ -106,27 +133,15 @@ function render() {
 
     const img = document.createElement("img");
     img.loading = "lazy";
-
-    // tile image source:
-    // - image => itself
-    // - video => poster if exists, else try video URL (may be blank in some browsers)
     img.src = posterUrl || mediaUrl;
     img.alt = it.alt || "";
 
-    // Add play badge for video
     if (isVideoItem(it)) {
       card.classList.add("is-video");
       const badge = document.createElement("div");
       badge.className = "play-badge";
       badge.innerHTML = `<span class="play-triangle"></span>`;
       card.appendChild(badge);
-    }
-
-    // Admin missing-poster badge
-    if (IS_ADMIN && isVideoItem(it) && it.poster) {
-      // if poster exists, great; if not, highlight
-      // We'll check existence when generating; here we just show a hint.
-      // (If you want, we can do HEAD checks later.)
     }
 
     card.addEventListener("click", () => openLightbox(idx));
@@ -151,7 +166,6 @@ function openLightbox(idx) {
   const it = mediaItems[currentIndex];
   const url = `${R2_BASE_URL}/${it.src}`;
 
-  // reset viewers
   if (lightboxImg) {
     lightboxImg.classList.remove("hide-img");
     lightboxImg.src = "";
@@ -164,12 +178,10 @@ function openLightbox(idx) {
     lightboxVideo.load();
   }
 
-  // show correct viewer
   if (isVideoItem(it)) {
     if (lightboxVideo) {
       lightboxVideo.src = url;
       lightboxVideo.classList.add("show-video");
-      // no autoplay by default
     }
     if (lightboxImg) lightboxImg.classList.add("hide-img");
   } else {
@@ -226,7 +238,6 @@ function showNext() {
   openLightbox(currentIndex);
 }
 
-// Buttons + overlay close
 closeBtn?.addEventListener("click", (e) => { e.stopPropagation(); closeLightbox(); });
 prevBtn?.addEventListener("click", (e) => { e.stopPropagation(); showPrev(); });
 nextBtn?.addEventListener("click", (e) => { e.stopPropagation(); showNext(); });
@@ -235,7 +246,6 @@ lightbox?.addEventListener("click", (e) => {
   if (e.target === lightbox) closeLightbox();
 });
 
-// Keyboard nav
 document.addEventListener("keydown", (e) => {
   if (!lightbox || !lightbox.classList.contains("show")) return;
   if (e.key === "Escape") closeLightbox();
@@ -243,11 +253,10 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight") showNext();
 });
 
-// Swipe support (mobile) - attach to both image and video
+// Swipe support
 let touchStartX = null;
 function attachSwipe(el) {
   if (!el) return;
-
   el.addEventListener("touchstart", (e) => {
     touchStartX = e.changedTouches[0].clientX;
   }, { passive: true });
@@ -279,25 +288,27 @@ async function loadAlbums() {
 async function loadAlbum(name) {
   const res = await fetch(`${ALBUM_URL(name)}&v=${Date.now()}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Album fetch failed: ${res.status}`);
-  return await res.json(); // { title, items }
+  return await res.json();
 }
 
 // =====================
-// ADMIN THUMBNAILS
+// ADMIN THUMBNAILS (already working for you)
 // =====================
-
-// Create a JPEG thumbnail from a video URL using the browser video decoder
 async function generatePosterBase64(videoUrl) {
-  // Use an offscreen video + canvas
+  const res = await fetch(videoUrl, { mode: "cors", cache: "no-store" });
+  if (!res.ok) throw new Error(`Video fetch failed (${res.status})`);
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+
   return new Promise((resolve, reject) => {
     const v = document.createElement("video");
-    v.crossOrigin = "anonymous"; // R2 public URL is cross-origin; this *may* still be blocked by CORS
     v.muted = true;
     v.playsInline = true;
     v.preload = "auto";
-    v.src = videoUrl;
+    v.src = blobUrl;
 
     const cleanup = () => {
+      try { URL.revokeObjectURL(blobUrl); } catch {}
       v.pause();
       v.removeAttribute("src");
       v.load();
@@ -305,12 +316,11 @@ async function generatePosterBase64(videoUrl) {
 
     v.addEventListener("error", () => {
       cleanup();
-      reject(new Error("Video could not be loaded for thumbnail generation (CORS or format issue)."));
+      reject(new Error("Video could not be decoded for thumbnail generation."));
     });
 
-    v.addEventListener("loadedmetadata", async () => {
+    v.addEventListener("loadedmetadata", () => {
       try {
-        // seek to ~1s or 10% into the clip, whichever is smaller but >0
         const t = Math.max(0.1, Math.min(1.0, (v.duration || 1) * 0.1));
         v.currentTime = t;
       } catch (e) {
@@ -325,7 +335,6 @@ async function generatePosterBase64(videoUrl) {
         const w = v.videoWidth || 1280;
         const h = v.videoHeight || 720;
 
-        // scale down to a nice thumbnail size
         const maxW = 900;
         const scale = Math.min(1, maxW / w);
 
@@ -335,7 +344,6 @@ async function generatePosterBase64(videoUrl) {
         const ctx = canvas.getContext("2d");
         ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
 
-        // Convert to JPEG base64
         const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
         const base64 = dataUrl.split(",")[1];
 
@@ -349,7 +357,6 @@ async function generatePosterBase64(videoUrl) {
   });
 }
 
-// Upload base64 JPEG to Worker /poster
 async function uploadPoster(posterKey, bytesBase64) {
   if (!adminToken) throw new Error("Missing admin token.");
 
@@ -372,11 +379,7 @@ async function uploadPoster(posterKey, bytesBase64) {
   }
 }
 
-// Admin run: generate thumbnails for videos that have a poster key
-// We do not HEAD-check poster existence (R2 CORS/head constraints), we simply try to upload.
-// If you re-run admin, it will overwrite posters with the same key (fine).
 async function runAdminThumbnailGenerator() {
-  // Ask for token once per session
   if (!adminToken) {
     adminToken = prompt("ADMIN mode: Enter THUMBNAIL_TOKEN to generate video thumbnails:");
     if (!adminToken) {
@@ -393,7 +396,7 @@ async function runAdminThumbnailGenerator() {
   const videos = (allItems || []).filter(it => it && it.type === "video" && it.src && it.poster);
 
   if (!videos.length) {
-    alert("No videos found in this album (or Worker did not include poster keys).");
+    alert("No videos found in this album.");
     return;
   }
 
@@ -414,18 +417,12 @@ async function runAdminThumbnailGenerator() {
     }
   }
 
-  // Reload album to pick up posters (they'll now resolve in the grid)
   const refreshed = await loadAlbum(currentAlbum);
   allItems = refreshed.items || [];
   rebuildMediaItems();
   render();
 
   count.textContent = `ADMIN: posters done (ok ${ok}, failed ${fail}) • ${prettyAlbumName(currentAlbum)}`;
-  if (fail > 0) {
-    alert(
-      `Generated posters: ${ok}\nFailed: ${fail}\n\nIf failures happened, it's usually video CORS/format. MP4 (H.264) works best.`
-    );
-  }
 }
 
 // =====================
@@ -440,11 +437,20 @@ async function init() {
     const albums = await loadAlbums();
 
     if (!albumsEl) {
-      throw new Error("Missing #albums element. Add <div id='albums'></div> in index.html.");
+      throw new Error("Missing #albums element in index.html.");
     }
+
+    // Add a Copy Link button once
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "album-btn";
+    copyBtn.type = "button";
+    copyBtn.textContent = "Copy album link";
+    copyBtn.addEventListener("click", copyCurrentAlbumLink);
 
     // Build album buttons
     albumsEl.innerHTML = "";
+    albumsEl.appendChild(copyBtn);
+
     albums.forEach((a) => {
       const btn = document.createElement("button");
       btn.className = "album-btn";
@@ -457,17 +463,15 @@ async function init() {
         const data = await loadAlbum(a);
 
         currentAlbum = a;
+        setAlbumInUrl(a);
         setActiveAlbumButton(a);
 
         allItems = data.items || [];
         rebuildMediaItems();
         render();
 
-        // In admin mode, offer to generate posters after album loads
         if (IS_ADMIN) {
-          const wants = confirm(
-            `ADMIN mode is ON.\n\nGenerate/refresh video thumbnails for album: ${prettyAlbumName(a)} ?`
-          );
+          const wants = confirm(`ADMIN mode is ON.\n\nGenerate/refresh video thumbnails for album: ${prettyAlbumName(a)} ?`);
           if (wants) await runAdminThumbnailGenerator();
         }
       });
@@ -475,22 +479,27 @@ async function init() {
       albumsEl.appendChild(btn);
     });
 
-    // Auto-load default album
-    const defaultAlbum = albums.includes("family") ? "family" : albums[0];
-    const data = await loadAlbum(defaultAlbum);
+    // Choose initial album:
+    // 1) ?album=... if valid
+    // 2) family if present
+    // 3) first album
+    const requested = getRequestedAlbumFromUrl();
+    const initial =
+      (requested && albums.includes(requested)) ? requested :
+      (albums.includes("family") ? "family" : albums[0]);
 
-    currentAlbum = defaultAlbum;
-    setActiveAlbumButton(defaultAlbum);
+    const data = await loadAlbum(initial);
+
+    currentAlbum = initial;
+    setAlbumInUrl(initial);
+    setActiveAlbumButton(initial);
 
     allItems = data.items || [];
     rebuildMediaItems();
     render();
 
-    // If admin mode is ON, offer to generate posters for the default album too
     if (IS_ADMIN) {
-      const wants = confirm(
-        `ADMIN mode is ON.\n\nGenerate/refresh video thumbnails for album: ${prettyAlbumName(defaultAlbum)} ?`
-      );
+      const wants = confirm(`ADMIN mode is ON.\n\nGenerate/refresh video thumbnails for album: ${prettyAlbumName(initial)} ?`);
       if (wants) await runAdminThumbnailGenerator();
     }
   } catch (err) {
@@ -498,8 +507,7 @@ async function init() {
     if (count) count.textContent = "Album system failed to load.";
     if (grid) {
       grid.innerHTML = `<div style="color:rgba(233,238,252,.75);padding:1rem;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(10,14,24,.35);">
-        Could not load albums. Check Worker URL, Worker CORS, and that your index.html contains &lt;div id="albums"&gt;&lt;/div&gt;.
-        ${IS_ADMIN ? "<br/><br/>Admin mode is on. If thumbnails fail, it's usually CORS/format." : ""}
+        Could not load albums. Check Worker URL + CORS.
       </div>`;
     }
   }
@@ -513,4 +521,5 @@ shuffleBtn?.addEventListener("click", () => {
 });
 
 init();
+
 
