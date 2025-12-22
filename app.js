@@ -18,6 +18,7 @@ const albumsEl = document.getElementById("albums");
 
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightboxImg");
+const lightboxVideo = document.getElementById("lightboxVideo");
 const caption = document.getElementById("caption");
 
 const closeBtn = document.getElementById("closeBtn");
@@ -27,9 +28,9 @@ const nextBtn = document.getElementById("nextBtn");
 // =====================
 // STATE
 // =====================
-let allItems = [];     // raw items for the currently-loaded album
-let imageItems = [];   // filtered items we render + navigate
-let currentIndex = -1; // index into imageItems
+let allItems = [];      // all items for current album
+let mediaItems = [];    // filtered items (images + videos)
+let currentIndex = -1;  // index into mediaItems
 let currentAlbum = null;
 
 // =====================
@@ -43,12 +44,17 @@ function shuffle(arr) {
   return arr;
 }
 
-function rebuildImageItems() {
-  imageItems = (allItems || []).filter((it) => it && it.type === "image" && it.src);
+function isVideoItem(it) {
+  return it && it.type === "video";
+}
+
+function rebuildMediaItems() {
+  mediaItems = (allItems || []).filter(
+    (it) => it && (it.type === "image" || it.type === "video") && it.src
+  );
 }
 
 function prettyAlbumName(key) {
-  // Pretty display names (folder keys stay clean)
   const map = {
     "pipers-quinceanera": "Piper’s Quinceañera",
     "family": "Family",
@@ -66,25 +72,40 @@ function setActiveAlbumButton(name) {
 }
 
 // =====================
-// RENDER
+// RENDER GRID
 // =====================
 function render() {
   if (!grid || !count) return;
 
   grid.innerHTML = "";
 
-  imageItems.forEach((it, idx) => {
+  mediaItems.forEach((it, idx) => {
     const src = `${R2_BASE_URL}/${it.src}`;
 
     const card = document.createElement("button");
     card.className = "card";
     card.type = "button";
-    card.setAttribute("aria-label", it.alt || `Open photo ${idx + 1}`);
+    card.setAttribute("aria-label", it.alt || `Open item ${idx + 1}`);
 
     const img = document.createElement("img");
     img.loading = "lazy";
     img.src = src;
     img.alt = it.alt || "";
+
+    // If it's a video, add a play badge overlay
+    if (isVideoItem(it)) {
+      card.classList.add("is-video");
+
+      const badge = document.createElement("div");
+      badge.className = "play-badge";
+      badge.innerHTML = `<span class="play-triangle"></span>`;
+      card.appendChild(badge);
+
+      // For videos, some browsers won't show anything unless we use a poster.
+      // We'll still set img.src to the video URL; the tile may appear blank in some cases.
+      // If you want true video thumbnails later, we can generate posters.
+      img.src = src;
+    }
 
     card.addEventListener("click", () => openLightbox(idx));
 
@@ -93,25 +114,52 @@ function render() {
   });
 
   const albumLabel = currentAlbum ? ` • ${prettyAlbumName(currentAlbum)}` : "";
-  count.textContent = `${imageItems.length} photos${albumLabel}`;
+  count.textContent = `${mediaItems.length} items${albumLabel}`;
 }
 
 // =====================
 // LIGHTBOX
 // =====================
 function openLightbox(idx) {
-  if (!lightbox || !lightboxImg) return;
-  if (!imageItems.length) return;
+  if (!lightbox) return;
+  if (!mediaItems.length) return;
 
-  currentIndex = Math.max(0, Math.min(idx, imageItems.length - 1));
-  const it = imageItems[currentIndex];
+  currentIndex = Math.max(0, Math.min(idx, mediaItems.length - 1));
+  const it = mediaItems[currentIndex];
+  const url = `${R2_BASE_URL}/${it.src}`;
 
-  lightboxImg.src = `${R2_BASE_URL}/${it.src}`;
-  lightboxImg.alt = it.alt || "";
+  // reset viewers
+  if (lightboxImg) {
+    lightboxImg.classList.remove("hide-img");
+    lightboxImg.src = "";
+    lightboxImg.alt = "";
+  }
+  if (lightboxVideo) {
+    lightboxVideo.classList.remove("show-video");
+    lightboxVideo.pause();
+    lightboxVideo.removeAttribute("src");
+    lightboxVideo.load();
+  }
+
+  // show correct viewer
+  if (isVideoItem(it)) {
+    if (lightboxVideo) {
+      lightboxVideo.src = url;
+      lightboxVideo.classList.add("show-video");
+      // no autoplay by default (safer + less annoying)
+    }
+    if (lightboxImg) lightboxImg.classList.add("hide-img");
+  } else {
+    if (lightboxImg) {
+      lightboxImg.src = url;
+      lightboxImg.alt = it.alt || "";
+    }
+  }
 
   if (caption) {
-    const label = it.alt ? it.alt : `Photo ${currentIndex + 1}`;
-    caption.textContent = `${label}  •  ${currentIndex + 1} of ${imageItems.length}`;
+    const label = it.alt ? it.alt : `Item ${currentIndex + 1}`;
+    const kind = isVideoItem(it) ? "Video" : "Photo";
+    caption.textContent = `${kind}: ${label}  •  ${currentIndex + 1} of ${mediaItems.length}`;
   }
 
   lightbox.classList.add("show");
@@ -119,29 +167,43 @@ function openLightbox(idx) {
 }
 
 function closeLightbox() {
-  if (!lightbox || !lightboxImg) return;
+  if (!lightbox) return;
+
   lightbox.classList.remove("show");
   lightbox.setAttribute("aria-hidden", "true");
-  lightboxImg.src = "";
+
+  if (lightboxImg) {
+    lightboxImg.src = "";
+    lightboxImg.alt = "";
+    lightboxImg.classList.remove("hide-img");
+  }
+
+  if (lightboxVideo) {
+    lightboxVideo.pause();
+    lightboxVideo.removeAttribute("src");
+    lightboxVideo.classList.remove("show-video");
+    lightboxVideo.load();
+  }
+
   if (caption) caption.textContent = "";
   currentIndex = -1;
 }
 
 function showPrev() {
-  if (!imageItems.length) return;
+  if (!mediaItems.length) return;
   if (currentIndex < 0) currentIndex = 0;
-  currentIndex = (currentIndex - 1 + imageItems.length) % imageItems.length;
+  currentIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
   openLightbox(currentIndex);
 }
 
 function showNext() {
-  if (!imageItems.length) return;
+  if (!mediaItems.length) return;
   if (currentIndex < 0) currentIndex = 0;
-  currentIndex = (currentIndex + 1) % imageItems.length;
+  currentIndex = (currentIndex + 1) % mediaItems.length;
   openLightbox(currentIndex);
 }
 
-// Buttons + overlay
+// Buttons + overlay close
 closeBtn?.addEventListener("click", (e) => { e.stopPropagation(); closeLightbox(); });
 prevBtn?.addEventListener("click", (e) => { e.stopPropagation(); showPrev(); });
 nextBtn?.addEventListener("click", (e) => { e.stopPropagation(); showNext(); });
@@ -150,22 +212,26 @@ lightbox?.addEventListener("click", (e) => {
   if (e.target === lightbox) closeLightbox();
 });
 
-// Keyboard navigation
+// Keyboard nav
 document.addEventListener("keydown", (e) => {
   if (!lightbox || !lightbox.classList.contains("show")) return;
+
   if (e.key === "Escape") closeLightbox();
   if (e.key === "ArrowLeft") showPrev();
   if (e.key === "ArrowRight") showNext();
 });
 
-// Swipe support (mobile) - guarded
+// Swipe support (mobile) - works on both image and video areas
 let touchStartX = null;
-if (lightboxImg) {
-  lightboxImg.addEventListener("touchstart", (e) => {
+
+function attachSwipe(el) {
+  if (!el) return;
+
+  el.addEventListener("touchstart", (e) => {
     touchStartX = e.changedTouches[0].clientX;
   }, { passive: true });
 
-  lightboxImg.addEventListener("touchend", (e) => {
+  el.addEventListener("touchend", (e) => {
     if (touchStartX === null) return;
     const touchEndX = e.changedTouches[0].clientX;
     const dx = touchEndX - touchStartX;
@@ -177,6 +243,9 @@ if (lightboxImg) {
     else showNext();
   }, { passive: true });
 }
+
+attachSwipe(lightboxImg);
+attachSwipe(lightboxVideo);
 
 // =====================
 // WORKER FETCH
@@ -194,6 +263,9 @@ async function loadAlbum(name) {
   return await res.json(); // { title, items }
 }
 
+// =====================
+// INIT
+// =====================
 async function init() {
   try {
     if (!count || !grid) return;
@@ -223,7 +295,7 @@ async function init() {
         setActiveAlbumButton(a);
 
         allItems = data.items || [];
-        rebuildImageItems();
+        rebuildMediaItems();
         render();
       });
 
@@ -238,14 +310,14 @@ async function init() {
     setActiveAlbumButton(defaultAlbum);
 
     allItems = data.items || [];
-    rebuildImageItems();
+    rebuildMediaItems();
     render();
   } catch (err) {
     console.error("INIT ERROR:", err);
     if (count) count.textContent = "Album system failed to load.";
     if (grid) {
       grid.innerHTML = `<div style="color:rgba(233,238,252,.75);padding:1rem;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(10,14,24,.35);">
-        Could not load albums. Check: Worker URL, Worker CORS, and that your index.html contains &lt;div id="albums"&gt;&lt;/div&gt;.
+        Could not load albums. Check Worker URL, Worker CORS, and that your index.html contains &lt;div id="albums"&gt;&lt;/div&gt;.
       </div>`;
     }
   }
@@ -254,7 +326,7 @@ async function init() {
 // Shuffle current album
 shuffleBtn?.addEventListener("click", () => {
   allItems = shuffle([...allItems]);
-  rebuildImageItems();
+  rebuildMediaItems();
   render();
 });
 
