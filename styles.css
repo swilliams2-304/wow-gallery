@@ -380,3 +380,132 @@ body{
   border-bottom:9px solid transparent;
   margin-left:3px;
 }
+/* =========================
+   HERO
+   ========================= */
+
+:root{
+  --hero-blue: 42,167,255;
+  --hero-red: 255,45,58;
+  --hero-accent: var(--hero-blue);
+}
+
+.hero{
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(6, 8, 14, .65);
+  padding: clamp(1.2rem, 3vw, 2.1rem);
+  margin: 1.2rem 0 1.1rem;
+  box-shadow: 0 30px 120px rgba(0,0,0,.55);
+  transform: translateZ(0);
+}
+
+.hero-inner{
+  position: relative;
+  z-index: 2;
+  max-width: 900px;
+}
+
+.hero-kicker{
+  font-weight: 900;
+  letter-spacing: .22em;
+  font-size: .72rem;
+  opacity: .75;
+}
+
+.hero-title{
+  margin: .55rem 0 .25rem;
+  font-size: clamp(2rem, 4.4vw, 3.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  font-weight: 950;
+  text-transform: none;
+  background: linear-gradient(90deg,
+    rgba(var(--hero-blue), .95),
+    rgba(255,255,255,.92),
+    rgba(var(--hero-red), .85)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-sub{
+  margin: 0;
+  max-width: 52ch;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: rgba(233,238,252,.82);
+}
+
+.hero-actions{
+  margin-top: .95rem;
+  display:flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.hero-btn{
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(10,14,24,.34);
+  color: rgba(233,238,252,.92);
+  padding: .65rem .95rem;
+  border-radius: 999px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+
+.hero-btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
+}
+
+.hero-glow{
+  position:absolute;
+  inset:-40%;
+  background:
+    radial-gradient(circle at 18% 28%, rgba(var(--hero-blue), .35), rgba(0,0,0,0) 45%),
+    radial-gradient(circle at 78% 52%, rgba(var(--hero-red), .22), rgba(0,0,0,0) 50%),
+    radial-gradient(circle at 55% 10%, rgba(var(--hero-accent), .18), rgba(0,0,0,0) 46%);
+  filter: blur(10px);
+  animation: heroFloat 12s linear infinite;
+  opacity: .9;
+}
+
+@keyframes heroFloat{
+  0%{ transform: translate3d(-2%, -1%, 0) scale(1.02); }
+  50%{ transform: translate3d(2%, 1.5%, 0) scale(1.06); }
+  100%{ transform: translate3d(-2%, -1%, 0) scale(1.02); }
+}
+
+.hero-grid{
+  position:absolute;
+  inset:0;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(circle at 30% 25%, rgba(0,0,0,.8), rgba(0,0,0,0) 68%);
+  opacity: .25;
+  z-index: 1;
+}
+
+/* Hero entrance animation on album change */
+.hero.pulse .hero-title{
+  animation: titlePop .55s ease both;
+}
+.hero.pulse .hero-sub{
+  animation: subFade .55s ease both;
+}
+
+@keyframes titlePop{
+  0%{ transform: translateY(10px); opacity: 0; filter: blur(2px); }
+  100%{ transform: translateY(0); opacity: 1; filter: blur(0); }
+}
+@keyframes subFade{
+  0%{ transform: translateY(8px); opacity: 0; }
+  100%{ transform: translateY(0); opacity: 1; }
+}
