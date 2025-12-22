@@ -20,6 +20,12 @@ const shuffleBtn = document.getElementById("shuffleBtn");
 
 const albumsEl = document.getElementById("albums");
 
+// Hero (Option 1)
+const heroEl = document.getElementById("hero");
+const albumNameEl = document.getElementById("albumName");
+const albumSubtitleEl = document.getElementById("albumSubtitle");
+const copyAlbumLinkBtn = document.getElementById("copyAlbumLinkBtn");
+
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightboxImg");
 const lightboxVideo = document.getElementById("lightboxVideo");
@@ -51,13 +57,13 @@ function getRequestedAlbumFromUrl() {
 function setAlbumInUrl(albumKey) {
   const u = new URL(location.href);
   u.searchParams.set("album", albumKey);
-  // keep admin mode if it was on
   if (IS_ADMIN) u.searchParams.set("admin", "1");
   history.replaceState({}, "", u.toString());
 }
 
 async function copyCurrentAlbumLink() {
   if (!currentAlbum) return;
+
   const u = new URL(location.href);
   u.searchParams.set("album", currentAlbum);
   if (IS_ADMIN) u.searchParams.set("admin", "1");
@@ -68,7 +74,6 @@ async function copyCurrentAlbumLink() {
     await navigator.clipboard.writeText(text);
     alert("Album link copied to clipboard ✅");
   } catch {
-    // fallback if clipboard is blocked
     prompt("Copy this album link:", text);
   }
 }
@@ -104,6 +109,47 @@ function prettyAlbumName(key) {
   return map[key] || key.replace(/[-_]/g, " ");
 }
 
+// Hero metadata (Option 1)
+const albumMeta = {
+  family: {
+    subtitle: "The highlight reel: laughter, chaos, and the good kind of noise.",
+    accent: "42,167,255" // blue
+  },
+  piper: {
+    subtitle: "Piper moments, captured mid-spark.",
+    accent: "255,45,58" // red
+  },
+  phoebe: {
+    subtitle: "Phoebe’s world: small moments with big energy.",
+    accent: "42,167,255" // blue
+  },
+  "pipers-quinceanera": {
+    subtitle: "A night with a heartbeat. Dress. Lights. Memories.",
+    accent: "255,45,58" // red
+  }
+};
+
+function updateHero(albumKey) {
+  const title = prettyAlbumName(albumKey);
+  const meta = albumMeta[albumKey] || {
+    subtitle: "Memories, neatly framed.",
+    accent: "42,167,255"
+  };
+
+  if (albumNameEl) albumNameEl.textContent = title;
+  if (albumSubtitleEl) albumSubtitleEl.textContent = meta.subtitle;
+
+  // shift glow accent
+  document.documentElement.style.setProperty("--hero-accent", meta.accent);
+
+  // pulse animation
+  if (heroEl) {
+    heroEl.classList.remove("pulse");
+    void heroEl.offsetWidth;
+    heroEl.classList.add("pulse");
+  }
+}
+
 function setActiveAlbumButton(name) {
   if (!albumsEl) return;
   [...albumsEl.querySelectorAll("button")].forEach((btn) => {
@@ -122,9 +168,9 @@ function render() {
   mediaItems.forEach((it, idx) => {
     const mediaUrl = `${R2_BASE_URL}/${it.src}`;
 
-    const posterUrl = (isVideoItem(it) && it.poster)
-      ? `${R2_BASE_URL}/${it.poster}`
-      : null;
+    // If it's a video and Worker provided a poster key, use poster for tile
+    const posterUrl =
+      isVideoItem(it) && it.poster ? `${R2_BASE_URL}/${it.poster}` : null;
 
     const card = document.createElement("button");
     card.className = "card";
@@ -166,6 +212,7 @@ function openLightbox(idx) {
   const it = mediaItems[currentIndex];
   const url = `${R2_BASE_URL}/${it.src}`;
 
+  // reset viewers
   if (lightboxImg) {
     lightboxImg.classList.remove("hide-img");
     lightboxImg.src = "";
@@ -178,6 +225,7 @@ function openLightbox(idx) {
     lightboxVideo.load();
   }
 
+  // show correct viewer
   if (isVideoItem(it)) {
     if (lightboxVideo) {
       lightboxVideo.src = url;
@@ -292,7 +340,7 @@ async function loadAlbum(name) {
 }
 
 // =====================
-// ADMIN THUMBNAILS (already working for you)
+// ADMIN THUMBNAILS
 // =====================
 async function generatePosterBase64(videoUrl) {
   const res = await fetch(videoUrl, { mode: "cors", cache: "no-store" });
@@ -423,6 +471,9 @@ async function runAdminThumbnailGenerator() {
   render();
 
   count.textContent = `ADMIN: posters done (ok ${ok}, failed ${fail}) • ${prettyAlbumName(currentAlbum)}`;
+  if (fail > 0) {
+    alert(`Generated posters: ${ok}\nFailed: ${fail}\n\nIf failures happen, it's usually codec/CORS. MP4 (H.264) works best.`);
+  }
 }
 
 // =====================
@@ -440,7 +491,10 @@ async function init() {
       throw new Error("Missing #albums element in index.html.");
     }
 
-    // Add a Copy Link button once
+    // Hero copy-link button
+    copyAlbumLinkBtn?.addEventListener("click", copyCurrentAlbumLink);
+
+    // (Optional) Keep the old copy button in the album bar too
     const copyBtn = document.createElement("button");
     copyBtn.className = "album-btn";
     copyBtn.type = "button";
@@ -465,6 +519,7 @@ async function init() {
         currentAlbum = a;
         setAlbumInUrl(a);
         setActiveAlbumButton(a);
+        updateHero(a);
 
         allItems = data.items || [];
         rebuildMediaItems();
@@ -479,10 +534,7 @@ async function init() {
       albumsEl.appendChild(btn);
     });
 
-    // Choose initial album:
-    // 1) ?album=... if valid
-    // 2) family if present
-    // 3) first album
+    // Choose initial album: ?album=..., else family, else first
     const requested = getRequestedAlbumFromUrl();
     const initial =
       (requested && albums.includes(requested)) ? requested :
@@ -493,6 +545,7 @@ async function init() {
     currentAlbum = initial;
     setAlbumInUrl(initial);
     setActiveAlbumButton(initial);
+    updateHero(initial);
 
     allItems = data.items || [];
     rebuildMediaItems();
