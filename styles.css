@@ -258,3 +258,165 @@ body{
   .brand-title{ font-size:2rem }
   .grid{ grid-template-columns:repeat(auto-fill,minmax(160px,1fr)) }
 }
+/* ===========================
+   NEW LANDING HERO (FLASHY)
+=========================== */
+
+.landing{
+  display:flex;
+  justify-content:center;
+  padding: 1.2rem 1rem 0.6rem;
+}
+
+.landing-inner{
+  width:min(980px, 100%);
+  text-align:center;
+  padding: 1.1rem 1.2rem 1.25rem;
+  border-radius: 26px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(6, 8, 14, .62);
+  box-shadow: 0 24px 120px rgba(0,0,0,.55);
+  position:relative;
+  overflow:hidden;
+}
+
+/* Badge */
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:.55rem;
+  padding:.35rem .75rem;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  font-size:.72rem;
+  letter-spacing:.16em;
+  opacity:.9;
+}
+
+.badge-dot{
+  width:8px;height:8px;border-radius:50%;
+  box-shadow: 0 0 16px rgba(255,255,255,.10);
+}
+.badge-dot.blue{ background: var(--blue); box-shadow: 0 0 18px rgba(42,167,255,.55); }
+.badge-dot.red{ background: var(--red); box-shadow: 0 0 18px rgba(255,45,58,.45); }
+
+/* Title */
+.landing-title{
+  margin: .75rem 0 .35rem;
+  font-size: clamp(2rem, 5.5vw, 3.4rem);
+  line-height: 1.02;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: rgba(233,238,252,.96);
+}
+
+.landing-title .accent{
+  background: linear-gradient(90deg, rgba(42,167,255,.95), rgba(255,255,255,.92), rgba(255,45,58,.88));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.landing-sub{
+  margin: 0 auto 1rem;
+  max-width: 60ch;
+  color: rgba(233,238,252,.76);
+  line-height: 1.45;
+}
+
+/* Buttons */
+.landing-actions{
+  display:flex;
+  justify-content:center;
+  gap:.6rem;
+  margin-bottom: .75rem;
+}
+
+.btn{
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(10,14,24,.30);
+  color: rgba(233,238,252,.92);
+  padding: .62rem .95rem;
+  border-radius: 999px;
+  cursor:pointer;
+  font-weight: 800;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+
+.btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
+}
+
+.btn.primary{
+  border:none;
+  background: linear-gradient(135deg, rgba(42,167,255,.95), rgba(255,45,58,.85));
+}
+
+/* Scroll hint */
+.scroll-hint{
+  font-size:.85rem;
+  opacity:.75;
+}
+
+/* Police-style lightbar animation (tasteful) */
+.lightbar{
+  position:absolute;
+  left: 50%;
+  bottom: -18px;
+  transform: translateX(-50%);
+  width: min(720px, 92%);
+  height: 56px;
+  pointer-events:none;
+  filter: blur(.2px);
+}
+
+.lightbar .glow{
+  position:absolute;
+  inset:0;
+  background: radial-gradient(circle at 50% 40%, rgba(255,255,255,.10), rgba(0,0,0,0) 60%);
+  opacity:.8;
+}
+
+.lightbar .beam{
+  position:absolute;
+  top: 14px;
+  height: 10px;
+  width: 40%;
+  border-radius: 999px;
+  opacity:.0;
+}
+
+.lightbar .beam.blue{
+  left: 6%;
+  background: radial-gradient(circle at 30% 50%, rgba(42,167,255,.95), rgba(42,167,255,0) 70%);
+  animation: blueFlash 1.35s infinite;
+}
+
+.lightbar .beam.red{
+  right: 6%;
+  background: radial-gradient(circle at 70% 50%, rgba(255,45,58,.92), rgba(255,45,58,0) 70%);
+  animation: redFlash 1.35s infinite;
+}
+
+@keyframes blueFlash{
+  0%{ opacity: 0; transform: translateX(-10px) scaleX(.95); }
+  8%{ opacity: .95; }
+  16%{ opacity: 0; }
+  55%{ opacity: 0; }
+  62%{ opacity: .85; transform: translateX(10px) scaleX(1.05); }
+  70%{ opacity: 0; }
+  100%{ opacity: 0; }
+}
+
+@keyframes redFlash{
+  0%{ opacity: 0; }
+  30%{ opacity: 0; }
+  38%{ opacity: .9; transform: translateX(10px) scaleX(1.05); }
+  46%{ opacity: 0; }
+  78%{ opacity: 0; }
+  86%{ opacity: .85; transform: translateX(-10px) scaleX(.95); }
+  94%{ opacity: 0; }
+  100%{ opacity: 0; }
+}
