@@ -121,6 +121,27 @@ lightboxImg.addEventListener("touchstart", (e) => {
 
 lightboxImg.addEventListener("touchend", (e) => {
   if (touchStartX === null) return;
+
+  const touchEndX = e.changedTouches[0].clientX;
+  const dx = touchEndX - touchStartX;
+  touchStartX = null;
+
+  // deadzone to prevent accidental flips
+  if (Math.abs(dx) < 40) return;
+
+  if (dx > 0) showPrev();   // swipe right = previous
+  else showNext();          // swipe left = next
+}, { passive: true });
+
+// Swipe support (mobile)
+let touchStartX = null;
+
+lightboxImg.addEventListener("touchstart", (e) => {
+  touchStartX = e.changedTouches[0].clientX;
+}, { passive: true });
+
+lightboxImg.addEventListener("touchend", (e) => {
+  if (touchStartX === null) return;
   const touchEndX = e.changedTouches[0].clientX;
   const dx = touchEndX - touchStartX;
   touchStartX = null;
