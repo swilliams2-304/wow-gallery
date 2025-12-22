@@ -508,3 +508,47 @@ body{
   0%{ transform: translateY(8px); opacity: 0; }
   100%{ transform: translateY(0); opacity: 1; }
 }
+/* === HERO: force compact height (override) === */
+.hero{
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+
+  align-self: start !important;
+  justify-self: start !important;
+
+  padding: .65rem .9rem !important;
+  margin: .6rem 0 .55rem !important;
+}
+
+/* tighten inner spacing */
+.hero-inner{
+  max-width: 820px !important;
+}
+
+/* smaller title/subtitle to match compact hero */
+.hero-title{
+  font-size: clamp(1.25rem, 2.6vw, 1.85rem) !important;
+  margin: .35rem 0 .15rem !important;
+}
+
+.hero-sub{
+  font-size: .92rem !important;
+  line-height: 1.35 !important;
+  margin: 0 !important;
+}
+
+.hero-actions{
+  margin-top: .45rem !important;
+}
+
+.hero-btn{
+  padding: .42rem .68rem !important;
+  font-size: .8rem !important;
+}
+
+/* reduce the glow so it doesn't feel like a giant panel */
+.hero-glow{
+  inset: -120px !important;
+  opacity: .65 !important;
+}
