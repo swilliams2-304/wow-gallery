@@ -12,11 +12,30 @@ const POSTER_UPLOAD_URL = `${WORKER_BASE_URL}/poster`;
 const IS_ADMIN = new URLSearchParams(location.search).get("admin") === "1";
 
 // =====================
+// SOFT PIN (front-end only)
+// =====================
+const SOFT_PIN = "64734"; // <<< CHANGE THIS PIN
+const PIN_STORAGE_KEY = "williams_gallery_unlocked";
+
+function isUnlocked() {
+  return localStorage.getItem(PIN_STORAGE_KEY) === "1";
+}
+function unlockGallery() {
+  localStorage.setItem(PIN_STORAGE_KEY, "1");
+}
+function lockGallery() {
+  localStorage.removeItem(PIN_STORAGE_KEY);
+  location.reload();
+}
+
+// =====================
 // DOM
 // =====================
 const grid = document.getElementById("grid");
 const count = document.getElementById("count");
+
 const shuffleBtn = document.getElementById("shuffleBtn");
+const enterBtn = document.getElementById("enterBtn");
 
 const albumsEl = document.getElementById("albums");
 
@@ -26,14 +45,20 @@ const albumNameEl = document.getElementById("albumName");
 const albumSubtitleEl = document.getElementById("albumSubtitle");
 const copyAlbumLinkBtn = document.getElementById("copyAlbumLinkBtn");
 
+// Lightbox
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightboxImg");
 const lightboxVideo = document.getElementById("lightboxVideo");
 const caption = document.getElementById("caption");
-
 const closeBtn = document.getElementById("closeBtn");
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
+
+// PIN Gate DOM
+const pinGate = document.getElementById("pinGate");
+const pinForm = document.getElementById("pinForm");
+const pinInput = document.getElementById("pinInput");
+const pinMsg = document.getElementById("pinMsg");
 
 // =====================
 // STATE
@@ -42,7 +67,6 @@ let allItems = [];
 let mediaItems = [];
 let currentIndex = -1;
 let currentAlbum = null;
-
 let adminToken = null;
 
 // =====================
@@ -72,7 +96,7 @@ async function copyCurrentAlbumLink() {
 
   try {
     await navigator.clipboard.writeText(text);
-    alert("Album link copied to clipboard ✅");
+    alert("Album link copied ✅");
   } catch {
     prompt("Copy this album link:", text);
   }
@@ -109,40 +133,37 @@ function prettyAlbumName(key) {
   return map[key] || key.replace(/[-_]/g, " ");
 }
 
-// Hero metadata (Option 1)
+// =====================
+// HERO metadata
+// =====================
 const albumMeta = {
   family: {
     subtitle: "The highlight reel: laughter, chaos, and the good kind of noise.",
-    accent: "42,167,255" // blue
+    accent: "42,167,255"
   },
   piper: {
     subtitle: "Piper moments, captured mid-spark.",
-    accent: "255,45,58" // red
+    accent: "255,45,58"
   },
   phoebe: {
     subtitle: "Phoebe’s world: small moments with big energy.",
-    accent: "42,167,255" // blue
+    accent: "42,167,255"
   },
   "pipers-quinceanera": {
     subtitle: "A night with a heartbeat. Dress. Lights. Memories.",
-    accent: "255,45,58" // red
+    accent: "255,45,58"
   }
 };
 
 function updateHero(albumKey) {
   const title = prettyAlbumName(albumKey);
-  const meta = albumMeta[albumKey] || {
-    subtitle: "Memories, neatly framed.",
-    accent: "42,167,255"
-  };
+  const meta = albumMeta[albumKey] || { subtitle: "Memories, neatly framed.", accent: "42,167,255" };
 
   if (albumNameEl) albumNameEl.textContent = title;
   if (albumSubtitleEl) albumSubtitleEl.textContent = meta.subtitle;
 
-  // shift glow accent
   document.documentElement.style.setProperty("--hero-accent", meta.accent);
 
-  // pulse animation
   if (heroEl) {
     heroEl.classList.remove("pulse");
     void heroEl.offsetWidth;
@@ -167,10 +188,7 @@ function render() {
 
   mediaItems.forEach((it, idx) => {
     const mediaUrl = `${R2_BASE_URL}/${it.src}`;
-
-    // If it's a video and Worker provided a poster key, use poster for tile
-    const posterUrl =
-      isVideoItem(it) && it.poster ? `${R2_BASE_URL}/${it.poster}` : null;
+    const posterUrl = isVideoItem(it) && it.poster ? `${R2_BASE_URL}/${it.poster}` : null;
 
     const card = document.createElement("button");
     card.className = "card";
@@ -212,7 +230,7 @@ function openLightbox(idx) {
   const it = mediaItems[currentIndex];
   const url = `${R2_BASE_URL}/${it.src}`;
 
-  // reset viewers
+  // Reset viewers
   if (lightboxImg) {
     lightboxImg.classList.remove("hide-img");
     lightboxImg.src = "";
@@ -225,7 +243,7 @@ function openLightbox(idx) {
     lightboxVideo.load();
   }
 
-  // show correct viewer
+  // Show correct viewer
   if (isVideoItem(it)) {
     if (lightboxVideo) {
       lightboxVideo.src = url;
@@ -382,7 +400,6 @@ async function generatePosterBase64(videoUrl) {
         const canvas = document.createElement("canvas");
         const w = v.videoWidth || 1280;
         const h = v.videoHeight || 720;
-
         const maxW = 900;
         const scale = Math.min(1, maxW / w);
 
@@ -471,6 +488,7 @@ async function runAdminThumbnailGenerator() {
   render();
 
   count.textContent = `ADMIN: posters done (ok ${ok}, failed ${fail}) • ${prettyAlbumName(currentAlbum)}`;
+
   if (fail > 0) {
     alert(`Generated posters: ${ok}\nFailed: ${fail}\n\nIf failures happen, it's usually codec/CORS. MP4 (H.264) works best.`);
   }
@@ -485,24 +503,29 @@ async function init() {
 
     count.textContent = "Loading albums…";
 
+    // Enter button smooth scroll
+    enterBtn?.addEventListener("click", () => {
+      document.getElementById("albums")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    // Copy link from hero
+    copyAlbumLinkBtn?.addEventListener("click", copyCurrentAlbumLink);
+
     const albums = await loadAlbums();
 
     if (!albumsEl) {
       throw new Error("Missing #albums element in index.html.");
     }
 
-    // Hero copy-link button
-    copyAlbumLinkBtn?.addEventListener("click", copyCurrentAlbumLink);
+    // Build album buttons
+    albumsEl.innerHTML = "";
 
-    // (Optional) Keep the old copy button in the album bar too
+    // Add a copy link button in album bar too (optional)
     const copyBtn = document.createElement("button");
     copyBtn.className = "album-btn";
     copyBtn.type = "button";
     copyBtn.textContent = "Copy album link";
     copyBtn.addEventListener("click", copyCurrentAlbumLink);
-
-    // Build album buttons
-    albumsEl.innerHTML = "";
     albumsEl.appendChild(copyBtn);
 
     albums.forEach((a) => {
@@ -573,10 +596,62 @@ shuffleBtn?.addEventListener("click", () => {
   render();
 });
 
-document.getElementById("enterBtn")?.addEventListener("click", () => {
-  document.getElementById("albums")?.scrollIntoView({ behavior: "smooth", block: "start" });
-});
+// =====================
+// PIN GATE WIRING
+// =====================
+function setupPinGate() {
+  if (!pinGate || !pinForm || !pinInput || !pinMsg) {
+    // If PIN gate HTML isn't present, just run app
+    init();
+    return;
+  }
 
-init();
+  // If already unlocked, hide gate and continue
+  if (isUnlocked()) {
+    pinGate.classList.add("hide");
+    pinGate.setAttribute("aria-hidden", "true");
+    init();
+    return;
+  }
+
+  // Otherwise, show gate and block scrolling behind it
+  document.body.style.overflow = "hidden";
+  pinInput.focus();
+
+  // enforce numeric-ish input only (optional)
+  pinInput.addEventListener("input", () => {
+    pinInput.value = pinInput.value.replace(/[^\d]/g, "").slice(0, 8);
+  });
+
+  pinForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const val = (pinInput.value || "").trim();
+
+    if (val === SOFT_PIN) {
+      unlockGallery();
+      pinGate.classList.add("hide");
+      pinGate.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+      init();
+    } else {
+      pinMsg.textContent = "Nope. Try again.";
+      pinInput.value = "";
+      pinInput.focus();
+      pinGate.animate(
+        [
+          { transform: "translateX(0)" },
+          { transform: "translateX(-8px)" },
+          { transform: "translateX(8px)" },
+          { transform: "translateX(0)" }
+        ],
+        { duration: 240 }
+      );
+    }
+  });
+}
+
+// Start
+setupPinGate();
+
 
 
