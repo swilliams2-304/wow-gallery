@@ -1,5 +1,5 @@
 // TODO: Paste your R2 public base URL here once created
-const R2_BASE_URL = "https://PASTE-YOUR-R2-PUBLIC-URL-HERE";
+const R2_BASE_URL = "https://pub-69c220e7c10141e18ac15b9cf428ef86.r2.dev";
 const INDEX_URL = `${R2_BASE_URL}/index.json`;
 
 const grid = document.getElementById("grid");
