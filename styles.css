@@ -527,3 +527,8 @@ body{
 .pin-gate.hide{
   display:none;
 }
+/* Ensure PIN overlay is truly gone after unlock */
+#pinGate.hide{
+  display:none !important;
+  pointer-events:none !important;
+}
