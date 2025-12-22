@@ -256,3 +256,19 @@ body{
   .nav.prev{ left: 10px; }
   .nav.next{ right: 10px; }
 }
+/* WOW entrance */
+.hero .badge, .hero .title, .hero .subtitle, .hero .actions, .hero .hint{
+  opacity: 0;
+  transform: translateY(14px);
+  animation: rise .75s ease forwards;
+}
+
+.hero .badge{ animation-delay: .05s; }
+.hero .title{ animation-delay: .14s; }
+.hero .subtitle{ animation-delay: .24s; }
+.hero .actions{ animation-delay: .34s; }
+.hero .hint{ animation-delay: .48s; }
+
+@keyframes rise{
+  to{ opacity:1; transform: translateY(0); }
+}
