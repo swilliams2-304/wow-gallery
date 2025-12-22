@@ -10,28 +10,37 @@
   <div class="bg"></div>
   <div class="noise"></div>
 
-  <header class="hero">
-    <div class="badge">WILLIAMS FAMILY • GALLERY</div>
-
-    <h1 class="title">
-      <span class="glow blue">BLUE</span>
-      <span class="slash">•</span>
-      <span class="glow red">RED</span>
-      <span class="slash">•</span>
-      <span class="glow">BLACK</span>
-    </h1>
-
-    <p class="subtitle">
-      Smooth. Flashy. Fast. A cinematic gallery built on Cloudflare.
-    </p>
-
-    <div class="actions">
-      <a class="btn primary" href="#gallery">Enter</a>
-      <button class="btn ghost" id="shuffleBtn">Shuffle</button>
+  <header class="landing" id="landing">
+  <div class="landing-inner">
+    <div class="badge">
+      <span class="badge-dot blue"></span>
+      <span>WILLIAMS FAMILY • GALLERY</span>
+      <span class="badge-dot red"></span>
     </div>
 
-    <div class="hint">Scroll ↓</div>
-  </header>
+    <h1 class="landing-title">
+      Williams Family <span class="accent">Gallery</span>
+    </h1>
+
+    <p class="landing-sub">
+      Memories captured with purpose. A cinematic family archive with a first-responder edge.
+    </p>
+
+    <div class="landing-actions">
+      <button class="btn primary" id="enterBtn" type="button">Enter</button>
+      <button class="btn" id="shuffleBtn" type="button">Shuffle</button>
+    </div>
+
+    <div class="scroll-hint">Scroll ↓</div>
+
+    <!-- Flashy lightbar -->
+    <div class="lightbar" aria-hidden="true">
+      <span class="beam blue"></span>
+      <span class="beam red"></span>
+      <span class="glow"></span>
+    </div>
+  </div>
+</header>
 
   <main id="gallery" class="gallery-wrap">
     <div class="section-title">
