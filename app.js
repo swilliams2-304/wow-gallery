@@ -1,11 +1,11 @@
 /* =========================================================
-   Williams Family Gallery — app.js (FULL)
-   - Pages frontend
-   - Albums + items from Worker
-   - Media from R2 public domain
-   - Video posters auto-detected
-   - Lightbox + arrows + swipe
-   - Soft PIN gate
+   Williams Family Gallery — app.js (FULL COPY/PASTE)
+   - Loads albums/items from Worker
+   - Uses R2 public domain for media
+   - Video thumbnails supported via item.poster (thumbs/<album>/<base>.jpg)
+   - Album menu uses .album-btn + .active
+   - Lightbox with arrows + swipe
+   - Soft PIN gate: 64734
 ========================================================= */
 
 /* ===========================
@@ -14,24 +14,26 @@
 const WORKER_BASE = "https://gallery-albums.swilliams2.workers.dev";
 const R2_PUBLIC_BASE = "https://pub-69c220e7c10141e18ac15b9cf428ef86.r2.dev";
 
-// Soft PIN
 const SOFT_PIN = "64734";
 const PIN_STORAGE_KEY = "wf_gallery_unlocked_v1";
 
-// Hide these from album menu no matter what
+// Hide these if they ever appear
 const HIDDEN_ALBUMS = new Set(["thumbs", "images", "index.json"]);
 
 /* ===========================
    DOM
 =========================== */
+// PIN gate
 const pinGate = document.getElementById("pinGate");
 const pinForm = document.getElementById("pinForm");
 const pinInput = document.getElementById("pinInput");
 const pinMsg = document.getElementById("pinMsg");
 
+// Landing actions
 const enterBtn = document.getElementById("enterBtn");
 const shuffleBtn = document.getElementById("shuffleBtn");
 
+// Hero text
 const albumNameEl = document.getElementById("albumName");
 const albumSubtitleEl = document.getElementById("albumSubtitle");
 const copyAlbumLinkBtn = document.getElementById("copyAlbumLinkBtn");
@@ -40,6 +42,7 @@ const albumsEl = document.getElementById("albums");
 const gridEl = document.getElementById("grid");
 const countEl = document.getElementById("count");
 
+// Lightbox
 const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightboxImg");
 const lightboxVideo = document.getElementById("lightboxVideo");
@@ -53,27 +56,16 @@ const captionEl = document.getElementById("caption");
 =========================== */
 let albums = [];
 let currentAlbum = null;
-let items = [];           // {type, src, alt}
+let items = [];          // from Worker: {type, src, alt, poster?}
 let currentIndex = -1;
 
 /* ===========================
-   UTIL
+   HELPERS
 =========================== */
 const qs = (k) => new URLSearchParams(location.search).get(k);
 
-function normalizeAlbumName(a) {
-  return (a || "").trim();
-}
-
-function albumKeyFromName(name) {
-  // Worker uses actual folder names; URLs can be lower/encoded
-  // We'll treat query param as a case-insensitive match.
-  const wanted = (name || "").trim().toLowerCase();
-  const match = albums.find(a => a.toLowerCase() === wanted);
-  return match || null;
-}
-
 function withCacheBust(url) {
+  // Helps avoid stale Worker responses
   const u = new URL(url);
   u.searchParams.set("v", Date.now().toString());
   return u.toString();
@@ -84,36 +76,46 @@ function workerUrl(path) {
 }
 
 function r2Url(key) {
-  // key like "family/photo.jpg" (no leading slash)
   return `${R2_PUBLIC_BASE}/${key}`;
+}
+
+function safeText(x) {
+  return (x ?? "").toString();
 }
 
 function isVideoKey(key) {
   return /\.(mp4|webm|mov)$/i.test(key);
 }
 
-function posterCandidatesFor(videoKey) {
-  // videoKey: "family/test.mp4"
-  const parts = videoKey.split("/");
-  const album = parts[0];
-  const file = parts[parts.length - 1];     // "test.mp4"
-  const base = file.replace(/\.(mp4|webm|mov)$/i, ""); // "test"
-
-  // Try both naming conventions:
-  // 1) base.jpg (test.jpg)
-  // 2) file.ext.jpg (test.mp4.jpg)  <-- very common
-  return [
-    `thumbs/${album}/${base}.jpg`,
-    `thumbs/${album}/${base}.webp`,
-    `thumbs/${album}/${file}.jpg`,
-    `thumbs/${album}/${file}.webp`,
-
-    `${album}/thumbs/${base}.jpg`,
-    `${album}/thumbs/${base}.webp`,
-    `${album}/thumbs/${file}.jpg`,
-    `${album}/thumbs/${file}.webp`,
-  ];
+function normalizeAlbumName(a) {
+  return safeText(a).trim();
 }
+
+function albumKeyFromNameInsensitive(name) {
+  const wanted = safeText(name).trim().toLowerCase();
+  return albums.find(a => a.toLowerCase() === wanted) || null;
+}
+
+/* Fallback thumbnail (simple dark card) */
+const FALLBACK_THUMB_DATA_URI =
+  "data:image/svg+xml;charset=UTF-8," +
+  encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800">
+    <defs>
+      <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+        <stop offset="0" stop-color="#0b1220"/>
+        <stop offset="1" stop-color="#05060a"/>
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#g)"/>
+    <circle cx="520" cy="400" r="120" fill="rgba(42,167,255,0.18)"/>
+    <circle cx="720" cy="400" r="120" fill="rgba(255,45,58,0.16)"/>
+    <text x="50%" y="52%" fill="rgba(233,238,252,0.75)" font-size="48" text-anchor="middle" font-family="Arial, sans-serif">
+      Video
+    </text>
+  </svg>
+`);
+
 /* ===========================
    PIN GATE
 =========================== */
@@ -137,7 +139,11 @@ function showPinError(msg) {
 }
 
 function setupPinGate() {
-  if (!pinGate) return;
+  if (!pinGate) {
+    // If PIN gate missing, just init
+    init().catch((e) => console.error("INIT ERROR:", e));
+    return;
+  }
 
   if (isUnlocked()) {
     hidePinGate();
@@ -145,16 +151,15 @@ function setupPinGate() {
     return;
   }
 
-  // focus input
   setTimeout(() => pinInput?.focus(), 50);
 
   pinForm?.addEventListener("submit", (e) => {
     e.preventDefault();
-    const val = (pinInput?.value || "").trim();
+    const val = safeText(pinInput?.value).trim();
     if (val === SOFT_PIN) {
       setUnlocked();
       hidePinGate();
-      init().catch((e) => console.error("INIT ERROR:", e));
+      init().catch((err) => console.error("INIT ERROR:", err));
     } else {
       showPinError("Wrong passcode.");
       if (pinInput) pinInput.value = "";
@@ -179,10 +184,8 @@ async function loadAlbums() {
   albums = list
     .map(normalizeAlbumName)
     .filter(Boolean)
-    .filter(a => !HIDDEN_ALBUMS.has(a.toLowerCase()));
-
-  // If you want alphabetical:
-  albums.sort((a, b) => a.localeCompare(b));
+    .filter(a => !HIDDEN_ALBUMS.has(a.toLowerCase()))
+    .sort((a, b) => a.localeCompare(b));
 
   renderAlbumMenu();
 }
@@ -203,17 +206,15 @@ async function loadAlbum(name) {
    RENDER: HERO
 =========================== */
 function renderHero() {
+  const n = items.length;
+
   if (albumNameEl) albumNameEl.textContent = currentAlbum || "Gallery";
   if (albumSubtitleEl) {
-    const n = items.length;
     albumSubtitleEl.textContent = n
       ? `${n} item${n === 1 ? "" : "s"} in this album.`
       : "No media found in this album yet.";
   }
-  if (countEl) {
-    const n = items.length;
-    countEl.textContent = `${n} item${n === 1 ? "" : "s"}`;
-  }
+  if (countEl) countEl.textContent = `${n} item${n === 1 ? "" : "s"}`;
 }
 
 /* ===========================
@@ -223,7 +224,7 @@ function renderAlbumMenu() {
   if (!albumsEl) return;
   albumsEl.innerHTML = "";
 
-  const currentParam = (qs("album") || "").toLowerCase();
+  const currentParam = safeText(qs("album")).toLowerCase();
 
   for (const a of albums) {
     const btn = document.createElement("button");
@@ -231,9 +232,11 @@ function renderAlbumMenu() {
     btn.className = "album-btn";
     btn.textContent = a;
 
-    if (a.toLowerCase() === currentParam || (!currentParam && a === albums[0])) {
-      btn.classList.add("active");
-    }
+    const isActive =
+      (currentParam && a.toLowerCase() === currentParam) ||
+      (!currentParam && a === albums[0]);
+
+    if (isActive) btn.classList.add("active");
 
     btn.addEventListener("click", () => {
       setActiveAlbumButton(a);
@@ -245,15 +248,17 @@ function renderAlbumMenu() {
 }
 
 function setActiveAlbumButton(name) {
-  const wanted = (name || "").toLowerCase();
-  [...albumsEl.querySelectorAll(".album-btn")].forEach((b) => {
-    b.classList.toggle("active", b.textContent.trim().toLowerCase() === wanted);
+  if (!albumsEl) return;
+  const wanted = safeText(name).toLowerCase();
+  albumsEl.querySelectorAll("button, a").forEach((el) => {
+    const label = safeText(el.textContent).trim().toLowerCase();
+    el.classList.toggle("active", label === wanted);
   });
 }
 
 function navigateToAlbum(name) {
   const u = new URL(location.href);
-  u.searchParams.set("album", name.toLowerCase());
+  u.searchParams.set("album", safeText(name).toLowerCase());
   history.pushState({}, "", u.toString());
   loadAlbum(name).catch(showAlbumError);
 }
@@ -274,45 +279,59 @@ function showAlbumError(err) {
   if (countEl) countEl.textContent = "—";
 }
 
+function makeVideoThumbImg(item) {
+  const img = document.createElement("img");
+  img.alt = item.alt || "Video";
+
+  // ✅ Use explicit poster from Worker if available
+  if (item.poster) {
+    img.src = r2Url(item.poster);
+  } else {
+    // fallback if poster field missing
+    img.src = FALLBACK_THUMB_DATA_URI;
+  }
+
+  // If poster fails to load (rare), fallback to built-in
+  img.onerror = () => {
+    img.src = FALLBACK_THUMB_DATA_URI;
+  };
+
+  img.loading = "lazy";
+  img.decoding = "async";
+  return img;
+}
+
+function makeImageThumbImg(item) {
+  const img = document.createElement("img");
+  img.alt = item.alt || "";
+  img.src = r2Url(item.src);
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.onerror = () => {
+    img.src = FALLBACK_THUMB_DATA_URI;
+  };
+  return img;
+}
+
 function makeCard(item, index) {
   const card = document.createElement("button");
   card.type = "button";
   card.className = "card";
-  if (item.type === "video") card.classList.add("is-video");
 
-  // Thumbnail image (for images, this is the actual image; for video, poster)
-  const thumb = document.createElement("img");
-  thumb.alt = item.alt || "";
+  if (item.type === "video") {
+    card.classList.add("is-video");
+    card.appendChild(makeVideoThumbImg(item));
 
-  if (item.type === "image") {
-    thumb.src = r2Url(item.src);
-  } else {
-    // video: try poster candidates, fallback to the video itself (browser might show first frame)
-    const candidates = posterCandidatesFor(item.src).map(r2Url);
-    let attempt = 0;
-    thumb.src = candidates[attempt];
-
-    thumb.onerror = () => {
-      attempt++;
-      if (attempt < candidates.length) {
-        thumb.src = candidates[attempt];
-      } else {
-        // final fallback: try using the video as src (some browsers will still paint a frame in <img> = no, so use a generic look)
-        // We'll keep the last poster attempt; card will still show play badge.
-        // (If you want a custom fallback image later, tell me and I’ll add it.)
-      }
-    };
-
-    // play badge overlay
+    // play badge overlay (if your CSS supports it)
     const badge = document.createElement("div");
     badge.className = "play-badge";
     const tri = document.createElement("div");
     tri.className = "play-triangle";
     badge.appendChild(tri);
     card.appendChild(badge);
+  } else {
+    card.appendChild(makeImageThumbImg(item));
   }
-
-  card.appendChild(thumb);
 
   card.addEventListener("click", () => openLightbox(index));
   return card;
@@ -332,7 +351,11 @@ function renderGrid() {
     return;
   }
 
-  items.forEach((it, i) => gridEl.appendChild(makeCard(it, i)));
+  items.forEach((it, i) => {
+    // Normalize type if Worker ever returns only src
+    if (!it.type) it.type = isVideoKey(it.src) ? "video" : "image";
+    gridEl.appendChild(makeCard(it, i));
+  });
 }
 
 /* ===========================
@@ -342,25 +365,43 @@ function setCaption(text) {
   if (captionEl) captionEl.textContent = text || "";
 }
 
-function showImage(srcKey, alt) {
-  lightboxVideo.pause();
-  lightboxVideo.removeAttribute("src");
-  lightboxVideo.load();
+function showImage(item) {
+  // Stop/clear video
+  if (lightboxVideo) {
+    lightboxVideo.pause();
+    lightboxVideo.removeAttribute("src");
+    lightboxVideo.removeAttribute("poster");
+    lightboxVideo.load();
+    lightboxVideo.style.display = "none";
+  }
 
-  lightboxImg.style.display = "block";
-  lightboxVideo.style.display = "none";
-
-  lightboxImg.src = r2Url(srcKey);
-  lightboxImg.alt = alt || "";
+  if (lightboxImg) {
+    lightboxImg.style.display = "block";
+    lightboxImg.src = r2Url(item.src);
+    lightboxImg.alt = item.alt || "";
+  }
 }
 
-function showVideo(srcKey) {
-  lightboxImg.removeAttribute("src");
-  lightboxImg.style.display = "none";
+function showVideo(item) {
+  // Clear image
+  if (lightboxImg) {
+    lightboxImg.removeAttribute("src");
+    lightboxImg.style.display = "none";
+  }
 
-  lightboxVideo.style.display = "block";
-  lightboxVideo.src = r2Url(srcKey);
-  lightboxVideo.load();
+  if (lightboxVideo) {
+    lightboxVideo.style.display = "block";
+    lightboxVideo.src = r2Url(item.src);
+
+    // ✅ Use poster in lightbox too (nice polish)
+    if (item.poster) {
+      lightboxVideo.poster = r2Url(item.poster);
+    } else {
+      lightboxVideo.removeAttribute("poster");
+    }
+
+    lightboxVideo.load();
+  }
 }
 
 function openLightbox(index) {
@@ -368,23 +409,30 @@ function openLightbox(index) {
   const item = items[currentIndex];
   if (!item) return;
 
-  if (item.type === "video") showVideo(item.src);
-  else showImage(item.src, item.alt);
+  if (item.type === "video") showVideo(item);
+  else showImage(item);
 
   setCaption(item.alt || "");
 
-  lightbox.classList.add("show");
-  lightbox.setAttribute("aria-hidden", "false");
+  if (lightbox) {
+    lightbox.classList.add("show");
+    lightbox.setAttribute("aria-hidden", "false");
+  }
 }
 
 function closeLightbox() {
+  if (!lightbox) return;
+
   lightbox.classList.remove("show");
   lightbox.setAttribute("aria-hidden", "true");
 
-  // stop video
-  lightboxVideo.pause();
-  lightboxVideo.removeAttribute("src");
-  lightboxVideo.load();
+  // Stop video if playing
+  if (lightboxVideo) {
+    lightboxVideo.pause();
+    lightboxVideo.removeAttribute("src");
+    lightboxVideo.removeAttribute("poster");
+    lightboxVideo.load();
+  }
 }
 
 function showPrev() {
@@ -392,20 +440,21 @@ function showPrev() {
   currentIndex = (currentIndex - 1 + items.length) % items.length;
   openLightbox(currentIndex);
 }
+
 function showNext() {
   if (!items.length) return;
   currentIndex = (currentIndex + 1) % items.length;
   openLightbox(currentIndex);
 }
 
-/* Swipe support (mobile) */
+/* Swipe support */
 let touchStartX = null;
+
 function setupSwipe() {
   if (!lightbox) return;
 
   lightbox.addEventListener("touchstart", (e) => {
-    if (!e.changedTouches?.length) return;
-    touchStartX = e.changedTouches[0].clientX;
+    touchStartX = e.changedTouches?.[0]?.clientX ?? null;
   }, { passive: true });
 
   lightbox.addEventListener("touchend", (e) => {
@@ -421,7 +470,7 @@ function setupSwipe() {
 }
 
 /* ===========================
-   LANDING ACTIONS
+   LANDING + MISC
 =========================== */
 function scrollToAlbums() {
   const el = document.querySelector(".album-bar") || albumsEl;
@@ -436,35 +485,34 @@ function shuffleAlbum() {
   scrollToAlbums();
 }
 
-/* ===========================
-   MISC
-=========================== */
 async function copyAlbumLink() {
   const u = new URL(location.href);
   if (currentAlbum) u.searchParams.set("album", currentAlbum.toLowerCase());
+
   try {
     await navigator.clipboard.writeText(u.toString());
-    if (albumSubtitleEl) albumSubtitleEl.textContent = "Album link copied to clipboard ✅";
-    setTimeout(renderHero, 1200);
+    if (albumSubtitleEl) albumSubtitleEl.textContent = "Album link copied ✅";
+    setTimeout(renderHero, 900);
   } catch {
-    // fallback: prompt
     window.prompt("Copy this album link:", u.toString());
   }
 }
 
+/* ===========================
+   WIRE UI
+=========================== */
 function wireUI() {
   closeBtn?.addEventListener("click", closeLightbox);
   prevBtn?.addEventListener("click", showPrev);
   nextBtn?.addEventListener("click", showNext);
 
-  // click backdrop closes (but don’t close when clicking media/buttons)
+  // click outside viewer closes
   lightbox?.addEventListener("click", (e) => {
-    const t = e.target;
-    if (t === lightbox) closeLightbox();
+    if (e.target === lightbox) closeLightbox();
   });
 
   window.addEventListener("keydown", (e) => {
-    if (!lightbox.classList.contains("show")) return;
+    if (!lightbox?.classList.contains("show")) return;
     if (e.key === "Escape") closeLightbox();
     if (e.key === "ArrowLeft") showPrev();
     if (e.key === "ArrowRight") showNext();
@@ -479,7 +527,7 @@ function wireUI() {
 
   window.addEventListener("popstate", () => {
     const a = qs("album");
-    if (a) loadAlbum(albumKeyFromName(a) || a).catch(showAlbumError);
+    if (a) loadAlbum(albumKeyFromNameInsensitive(a) || a).catch(showAlbumError);
   });
 }
 
@@ -491,14 +539,12 @@ async function init() {
 
   await loadAlbums();
 
-  // Choose album
   const fromUrl = qs("album");
   const chosen = fromUrl
-    ? (albumKeyFromName(fromUrl) || normalizeAlbumName(fromUrl))
+    ? (albumKeyFromNameInsensitive(fromUrl) || normalizeAlbumName(fromUrl))
     : (albums[0] || null);
 
   if (!chosen) {
-    // no albums exist
     if (albumNameEl) albumNameEl.textContent = "No albums found.";
     if (albumSubtitleEl) albumSubtitleEl.textContent = "Create a folder in R2 and upload at least one image/video.";
     if (countEl) countEl.textContent = "0 items";
@@ -509,8 +555,9 @@ async function init() {
   await loadAlbum(chosen);
 }
 
-/* Boot */
+/* BOOT */
 setupPinGate();
+
 
 
 
