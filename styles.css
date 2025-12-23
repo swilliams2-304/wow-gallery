@@ -1,317 +1,405 @@
 /* =========================================================
-   WILLIAMS FAMILY GALLERY - STYLES.CSS
-   Theme: Blue • Black • Red (cinematic)
-   Notes:
-   - Landing hero background image: /assets/landing-bg.png
-   - Lightbox sizing is capped to viewport
+   Williams Family Gallery — styles.css
+   Palette: Blue • Black • Red
+   Matches your current index.html structure exactly
    ========================================================= */
 
 /* ===========================
-   1) ROOT THEME VARIABLES
+   1) THEME VARIABLES
 =========================== */
 :root{
-  --bg: #05060a;
-  --blue: #2aa7ff;
-  --red: #ff2d3a;
-  --text: #e9eefc;
-  --muted: rgba(233,238,252,.72);
-  --stroke: rgba(255,255,255,.10);
-  --shadow: 0 20px 80px rgba(0,0,0,.55);
-
-  /* Used by hero pulse accent (optional) */
-  --hero-accent: 42,167,255;
+  --bg:#05060a;
+  --blue:#2aa7ff;
+  --red:#ff2d3a;
+  --text:#e9eefc;
+  --muted:rgba(233,238,252,.75);
+  --stroke:rgba(255,255,255,.12);
+  --panel:rgba(6,8,14,.62);
+  --shadow:0 24px 120px rgba(0,0,0,.55);
 }
 
 /* ===========================
-   2) BASE / RESET
+   2) BASE RESET
 =========================== */
 *{ box-sizing:border-box; }
-html, body{ height:100%; }
-
+html,body{ height:100%; }
 body{
   margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   overflow-x:hidden;
 }
+img{ display:block; max-width:100%; }
+button{ font-family:inherit; }
 
-/* Global background wash (subtle cinematic gradients) */
-body::before{
-  content:"";
+/* Optional background layers you already have in HTML */
+.bg{
   position:fixed;
   inset:0;
-  z-index:-2;
+  z-index:-3;
   background:
     radial-gradient(1100px 700px at 18% 12%, rgba(42,167,255,.16), transparent 60%),
     radial-gradient(1100px 700px at 82% 26%, rgba(255,45,58,.14), transparent 62%),
-    radial-gradient(900px 600px at 45% 92%, rgba(255,255,255,.05), transparent 60%),
-    linear-gradient(180deg, rgba(0,0,0,.75), rgba(0,0,0,.95));
+    linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.95));
 }
 
-a{ color: var(--blue); text-decoration:none; }
-a:hover{ text-decoration:underline; }
-
-img{ max-width:100%; display:block; }
-
-/* ===========================
-   3) PAGE LAYOUT
-=========================== */
-.wrap{
-  width:min(1100px, 92vw);
-  margin: 0 auto;
-  padding: 1.2rem 0 3rem;
-}
-
-.section-title{
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  margin: 1.2rem 0 .75rem;
-  gap: 1rem;
-}
-
-.section-title h2{
-  margin:0;
-  font-size: 1.2rem;
-  letter-spacing: .02em;
-}
-
-#count{
-  color: var(--muted);
-  font-size: .95rem;
+.noise{
+  position:fixed;
+  inset:0;
+  z-index:-2;
+  opacity:.06;
+  pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.45'/%3E%3C/svg%3E");
+  background-size:180px 180px;
 }
 
 /* ===========================
-   4) TOP LANDING HEADER (CENTERED)
-   This is the main banner title area on load.
+   3) SHARED BUTTONS
 =========================== */
-.topbar{
+.btn{
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(10,14,24,.30);
+  color: rgba(233,238,252,.92);
+  padding: .62rem .95rem;
+  border-radius: 999px;
+  cursor:pointer;
+  font-weight: 850;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
+  background: rgba(255,255,255,.08);
+}
+.btn.primary{
+  border:none;
+  background: linear-gradient(135deg, rgba(42,167,255,.95), rgba(255,45,58,.85));
+}
+
+/* ===========================
+   4) LANDING HEADER (FLASHY)
+   Uses your PNG background at /assets/landing-bg.png
+=========================== */
+.landing{
   display:flex;
-  align-items:center;
   justify-content:center;
-  padding: .85rem 0 .35rem;
+  padding: 1.2rem 1rem 0.9rem;
+
+  /* PNG background + readability overlay */
+  background-image:
+    linear-gradient(rgba(5,10,20,.70), rgba(5,10,20,.88)),
+    url("/assets/landing-bg.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.landing-inner{
+  width: min(980px, 100%);
   text-align:center;
+  padding: 1.1rem 1.2rem 1.25rem;
+  border-radius: 26px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(6, 8, 14, .55);
+  box-shadow: var(--shadow);
+  position:relative;
+  overflow:hidden;
 }
 
-.brand{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:.4rem;
-}
-
-.brand .pill{
+/* Badge */
+.badge{
   display:inline-flex;
   align-items:center;
   gap:.55rem;
   padding:.35rem .75rem;
-  border-radius: 999px;
-  border:1px solid var(--stroke);
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
   background: rgba(255,255,255,.05);
   font-size:.72rem;
   letter-spacing:.16em;
-  text-transform: uppercase;
-  color: rgba(233,238,252,.86);
+  opacity:.92;
+}
+.badge-dot{
+  width:8px;height:8px;border-radius:50%;
+}
+.badge-dot.blue{ background: var(--blue); box-shadow: 0 0 18px rgba(42,167,255,.55); }
+.badge-dot.red{ background: var(--red); box-shadow: 0 0 18px rgba(255,45,58,.45); }
+
+/* Title */
+.landing-title{
+  margin: .75rem 0 .35rem;
+  font-size: clamp(2rem, 5.5vw, 3.4rem);
+  line-height: 1.02;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+  color: rgba(233,238,252,.96);
+}
+.landing-title .accent{
+  background: linear-gradient(90deg, rgba(42,167,255,.95), rgba(255,255,255,.92), rgba(255,45,58,.88));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
-.brand .pill .dot{
-  width:8px;
-  height:8px;
-  border-radius:50%;
-}
-.brand .pill .dot.blue{ background: var(--blue); box-shadow: 0 0 18px rgba(42,167,255,.55); }
-.brand .pill .dot.red{ background: var(--red); box-shadow: 0 0 18px rgba(255,45,58,.45); }
-
-.brand h1{
-  margin:0;
-  font-size: clamp(1.8rem, 4vw, 3rem);
-  font-weight: 900;
-  letter-spacing: .03em;
+.landing-sub{
+  margin: 0 auto 1rem;
+  max-width: 62ch;
+  color: rgba(233,238,252,.76);
+  line-height: 1.45;
 }
 
-.brand p{
-  margin:0;
-  color: var(--muted);
-  max-width: 60ch;
-}
-
-/* Top CTA buttons */
-.actions{
+.landing-actions{
   display:flex;
-  gap:.6rem;
   justify-content:center;
-  margin-top: .75rem;
+  gap:.6rem;
+  margin-bottom: .75rem;
 }
 
-.btn{
-  border:none;
-  cursor:pointer;
-  padding:.72rem 1rem;
-  border-radius: 999px;
-  font-weight: 800;
-  color: rgba(233,238,252,.95);
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.10);
-  transition: transform .15s ease, background .15s ease;
-}
-
-.btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.09); }
-.btn.primary{
-  background: linear-gradient(135deg, rgba(42,167,255,.95), rgba(255,45,58,.85));
-  border: none;
-}
-
-.scrollhint{
-  margin-top:.6rem;
-  color: rgba(233,238,252,.65);
+.scroll-hint{
   font-size:.9rem;
+  opacity:.75;
 }
 
-/* ===========================
-   5) HERO (ALBUM SPOTLIGHT CARD)
-   Uses your PNG as the background for the landing experience.
-   File path expected: /assets/landing-bg.png
-=========================== */
-.hero{
-  min-height: 55vh;           /* reduced so it doesn’t dominate */
-  display:grid;
-  place-items:center;
-  text-align:center;
-  padding: 3rem 1.5rem;
-
-  background-image:
-    linear-gradient(rgba(5,10,20,.74), rgba(5,10,20,.86)),
-    url("/assets/landing-bg.png");
-
-  background-size: cover;
-  background-position: center;
-  background-repeat:no-repeat;
-
-  border-radius: 28px;
-  border: 1px solid rgba(255,255,255,.10);
-  box-shadow: var(--shadow);
-  overflow:hidden;
-  position:relative;
-}
-
-/* Subtle light sweep (police-ish cinematic) */
-.hero::after{
-  content:"";
+/* Police-style lightbar animation (tasteful) */
+.lightbar{
   position:absolute;
-  inset:-40%;
-  background:
-    linear-gradient(90deg,
-      transparent 0%,
-      rgba(42,167,255,.12) 40%,
-      rgba(255,45,58,.10) 60%,
-      transparent 100%);
-  transform: rotate(12deg);
-  animation: sweep 7s ease-in-out infinite alternate;
+  left: 50%;
+  bottom: -18px;
+  transform: translateX(-50%);
+  width: min(720px, 92%);
+  height: 56px;
   pointer-events:none;
 }
 
-@keyframes sweep{
-  from{ transform: translateX(-8%) rotate(12deg); }
-  to{ transform: translateX(8%) rotate(12deg); }
+.lightbar .glow{
+  position:absolute;
+  inset:0;
+  background: radial-gradient(circle at 50% 40%, rgba(255,255,255,.10), rgba(0,0,0,0) 60%);
+  opacity:.85;
 }
 
-.hero-card{
-  position:relative;
-  z-index:1;
-  width:min(820px, 100%);
-  padding: 1.25rem 1.2rem 1.15rem;
-  border-radius: 22px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(6,8,14,.62);
-  backdrop-filter: blur(10px);
+.lightbar .beam{
+  position:absolute;
+  top: 14px;
+  height: 10px;
+  width: 40%;
+  border-radius: 999px;
+  opacity:0;
 }
 
-.hero-kicker{
-  font-size:.75rem;
-  letter-spacing:.18em;
-  text-transform:uppercase;
-  color: rgba(233,238,252,.75);
-  margin-bottom:.45rem;
+.lightbar .beam.blue{
+  left: 6%;
+  background: radial-gradient(circle at 30% 50%, rgba(42,167,255,.95), rgba(42,167,255,0) 70%);
+  animation: blueFlash 1.35s infinite;
+}
+.lightbar .beam.red{
+  right: 6%;
+  background: radial-gradient(circle at 70% 50%, rgba(255,45,58,.92), rgba(255,45,58,0) 70%);
+  animation: redFlash 1.35s infinite;
 }
 
-.hero-title{
-  font-size: clamp(1.7rem, 3.6vw, 2.6rem);
-  font-weight: 950;
-  margin: 0 0 .35rem;
+@keyframes blueFlash{
+  0%{ opacity: 0; transform: translateX(-10px) scaleX(.95); }
+  8%{ opacity: .95; }
+  16%{ opacity: 0; }
+  55%{ opacity: 0; }
+  62%{ opacity: .85; transform: translateX(10px) scaleX(1.05); }
+  70%{ opacity: 0; }
+  100%{ opacity: 0; }
 }
-
-.hero-subtitle{
-  margin: 0 auto .9rem;
-  color: rgba(233,238,252,.76);
-  max-width: 65ch;
-}
-
-.hero-card .btn{
-  margin: 0 auto;
-}
-
-/* Optional pulse animation if JS toggles .pulse */
-.hero.pulse{
-  animation: heroPulse .42s ease;
-}
-@keyframes heroPulse{
-  from{ box-shadow: 0 0 0 rgba(0,0,0,0); }
-  to{ box-shadow: var(--shadow); }
+@keyframes redFlash{
+  0%{ opacity: 0; }
+  30%{ opacity: 0; }
+  38%{ opacity: .9; transform: translateX(10px) scaleX(1.05); }
+  46%{ opacity: 0; }
+  78%{ opacity: 0; }
+  86%{ opacity: .85; transform: translateX(-10px) scaleX(.95); }
+  94%{ opacity: 0; }
+  100%{ opacity: 0; }
 }
 
 /* ===========================
-   6) ALBUM BAR (PILLS)
+   5) MAIN GALLERY WRAPPER
 =========================== */
-#albums{
+.gallery-wrap{
+  width: min(1100px, 92vw);
+  margin: 0 auto;
+  padding: .9rem 0 2.8rem;
+}
+
+/* ===========================
+   6) SECTION TITLE ROW
+=========================== */
+.section-title{
   display:flex;
-  flex-wrap: wrap;
-  gap: .6rem;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap: 1rem;
+  margin: .6rem 0 .75rem;
+}
+
+.section-title h2{
+  margin:0;
+  font-size: 1.15rem;
+  letter-spacing:.02em;
+}
+
+#count{
+  margin:0;
+  color: var(--muted);
+  font-size:.95rem;
+}
+
+/* ===========================
+   7) ALBUM HERO (COMPACT, CENTERED)
+=========================== */
+.hero{
+  width:100%;
+  display:flex;
+  justify-content:center;
+  margin: 0 0 .75rem;
+}
+
+.hero-inner{
+  width:100%;
+  max-width: 980px;
+  text-align:center;
+  padding: .75rem .95rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(6,8,14,.55);
+  box-shadow: 0 16px 60px rgba(0,0,0,.38);
+  position:relative;
+  overflow:hidden;
+}
+
+.hero-kicker{
+  font-weight: 900;
+  letter-spacing: .22em;
+  font-size: .68rem;
+  opacity: .78;
+}
+
+.hero-title{
+  margin: .35rem 0 .1rem;
+  font-size: clamp(1.25rem, 2.8vw, 1.9rem);
+  line-height: 1.05;
+  font-weight: 950;
+  background: linear-gradient(90deg, rgba(42,167,255,.95), rgba(255,255,255,.92), rgba(255,45,58,.85));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-sub{
+  margin: 0;
+  color: rgba(233,238,252,.78);
+  font-size: .92rem;
+  line-height: 1.35;
+}
+
+.hero-actions{
+  margin-top: .45rem;
+  display:flex;
+  justify-content:center;
+}
+
+.hero-btn{
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(10,14,24,.30);
+  color: rgba(233,238,252,.92);
+  padding: .45rem .7rem;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor:pointer;
+}
+
+.hero-glow{
+  position:absolute;
+  inset:-140px;
+  background:
+    radial-gradient(circle at 18% 28%, rgba(42,167,255,.25), rgba(0,0,0,0) 55%),
+    radial-gradient(circle at 78% 52%, rgba(255,45,58,.16), rgba(0,0,0,0) 58%);
+  filter: blur(10px);
+  opacity: .7;
+  pointer-events:none;
+}
+.hero-grid{
+  position:absolute;
+  inset:0;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.06) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(circle at 30% 25%, rgba(0,0,0,.8), rgba(0,0,0,0) 68%);
+  opacity: .18;
+  pointer-events:none;
+}
+
+/* ===========================
+   8) ALBUM BAR
+=========================== */
+.album-bar{
+  margin: .25rem 0 1rem;
   padding: .9rem;
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.03);
-  justify-content: center;
+}
+
+.album-title{
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-size: .72rem;
+  opacity:.8;
+  margin-bottom: .6rem;
+}
+
+.albums{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.55rem;
+  justify-content:center;
 }
 
 .album-btn{
-  border:none;
-  cursor:pointer;
-  padding: .55rem .85rem;
-  border-radius: 999px;
-  font-weight: 800;
-  font-size: .92rem;
-  color: rgba(233,238,252,.88);
+  border: 1px solid rgba(255,255,255,.12);
   background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.10);
-  transition: transform .15s ease, background .15s ease, border-color .15s ease;
+  color: rgba(233,238,252,.90);
+  padding: .52rem .82rem;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor:pointer;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
 }
 
 .album-btn:hover{
   transform: translateY(-1px);
   background: rgba(255,255,255,.09);
+  border-color: rgba(42,167,255,.25);
 }
 
 .album-btn.active{
-  background: linear-gradient(135deg, rgba(42,167,255,.42), rgba(255,45,58,.28));
-  border-color: rgba(42,167,255,.35);
+  border-color: rgba(42,167,255,.38);
+  background: linear-gradient(135deg, rgba(42,167,255,.30), rgba(255,45,58,.22));
 }
 
 /* ===========================
-   7) GRID (PHOTOS / VIDEOS)
+   9) GRID
 =========================== */
-#grid{
+.grid{
   display:grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
-  margin-top: 1rem;
 }
 
 @media (max-width: 920px){
-  #grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px){
-  #grid{ grid-template-columns: 1fr; }
+  .grid{ grid-template-columns: 1fr; }
 }
 
 .card{
@@ -321,13 +409,11 @@ img{ max-width:100%; display:block; }
   border-radius: 18px;
   overflow:hidden;
   position:relative;
-
   background: rgba(255,255,255,.03);
   border: 1px solid rgba(255,255,255,.10);
   box-shadow: 0 12px 40px rgba(0,0,0,.35);
   transition: transform .18s ease, border-color .18s ease;
 }
-
 .card:hover{
   transform: translateY(-2px);
   border-color: rgba(42,167,255,.25);
@@ -366,28 +452,38 @@ img{ max-width:100%; display:block; }
 }
 
 /* ===========================
-   8) LIGHTBOX
+   10) LIGHTBOX
 =========================== */
-#lightbox{
+.lightbox{
   position: fixed;
   inset: 0;
-  display:none; /* only show when .show is added */
+  display:none;
   align-items: center;
   justify-content: center;
   z-index: 1500;
-
   background: rgba(0,0,0,.82);
   backdrop-filter: blur(8px);
   padding: 1rem;
 }
 
-#lightbox.show{
+/* supports both JS patterns */
+.lightbox.show,
+.lightbox.active{
   display:flex !important;
 }
 
+/* viewer container */
+.viewer{
+  margin:0;
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
 /* Media sizing fix: never overflow viewport */
-#lightbox img,
-#lightbox video{
+#lightboxImg,
+#lightboxVideo{
   max-width: 92vw;
   max-height: 92vh;
   width: auto;
@@ -399,16 +495,9 @@ img{ max-width:100%; display:block; }
   background: black;
 }
 
-/* Hide/show helpers used by JS */
-.hide-img{ display:none !important; }
-.show-video{ display:block !important; }
-
-/* Caption */
-#caption{
-  position: fixed;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
+.caption{
+  margin-top: .65rem;
+  text-align:center;
   color: rgba(233,238,252,.86);
   background: rgba(10,14,24,.45);
   border: 1px solid rgba(255,255,255,.12);
@@ -419,9 +508,9 @@ img{ max-width:100%; display:block; }
 }
 
 /* Close + arrows */
-#closeBtn, #prevBtn, #nextBtn{
+.close,
+.nav{
   position: fixed;
-  top: 18px;
   width: 44px;
   height: 44px;
   border-radius: 999px;
@@ -432,18 +521,19 @@ img{ max-width:100%; display:block; }
   backdrop-filter: blur(10px);
 }
 
-#closeBtn{ right: 18px; font-size: 22px; line-height: 1; }
-#prevBtn{ left: 18px; top: 50%; transform: translateY(-50%); }
-#nextBtn{ right: 18px; top: 50%; transform: translateY(-50%); }
+.close{ top: 18px; right: 18px; font-size: 22px; line-height: 1; }
+.nav.prev{ left: 18px; top: 50%; transform: translateY(-50%); }
+.nav.next{ right: 18px; top: 50%; transform: translateY(-50%); }
 
-#prevBtn:hover, #nextBtn:hover, #closeBtn:hover{
+.close:hover,
+.nav:hover{
   border-color: rgba(42,167,255,.35);
 }
 
 /* ===========================
-   9) SOFT PIN GATE
+   11) PIN GATE
 =========================== */
-#pinGate{
+.pin-gate{
   position:fixed;
   inset:0;
   z-index:2000;
@@ -453,7 +543,7 @@ img{ max-width:100%; display:block; }
   padding: 1rem;
 }
 
-#pinGate .pin-backdrop{
+.pin-backdrop{
   position:absolute;
   inset:0;
   background:
@@ -463,7 +553,7 @@ img{ max-width:100%; display:block; }
   backdrop-filter: blur(8px);
 }
 
-#pinGate .pin-card{
+.pin-card{
   position:relative;
   z-index:1;
   width:min(460px, 100%);
@@ -475,25 +565,41 @@ img{ max-width:100%; display:block; }
   text-align:center;
 }
 
-#pinGate .pin-title{
-  margin: .85rem 0 .15rem;
-  font-size: 1.55rem;
-  font-weight: 900;
+.pin-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:.55rem;
+  padding:.35rem .75rem;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  font-size:.72rem;
+  letter-spacing:.16em;
+  opacity:.92;
 }
 
-#pinGate .pin-sub{
+.pin-dot{ width:8px; height:8px; border-radius:50%; }
+.pin-dot.blue{ background: var(--blue); box-shadow: 0 0 18px rgba(42,167,255,.55); }
+.pin-dot.red{ background: var(--red); box-shadow: 0 0 18px rgba(255,45,58,.45); }
+
+.pin-title{
+  margin: .85rem 0 .15rem;
+  font-size: 1.55rem;
+  font-weight: 950;
+}
+.pin-sub{
   margin: 0 0 .95rem;
   color: rgba(233,238,252,.75);
 }
 
-#pinGate .pin-form{
+.pin-form{
   display:flex;
   gap:.6rem;
   justify-content:center;
   align-items:center;
 }
 
-#pinGate .pin-input{
+.pin-input{
   width: 160px;
   padding: .7rem .8rem;
   border-radius: 14px;
@@ -506,40 +612,42 @@ img{ max-width:100%; display:block; }
   outline:none;
 }
 
-#pinGate .pin-input:focus{
+.pin-input:focus{
   border-color: rgba(42,167,255,.45);
   box-shadow: 0 0 0 4px rgba(42,167,255,.12);
 }
 
-#pinGate .pin-btn{
+.pin-btn{
   padding: .72rem .95rem;
   border-radius: 999px;
   border: none;
   cursor: pointer;
-  font-weight: 900;
+  font-weight: 950;
   color: rgba(233,238,252,.95);
   background: linear-gradient(135deg, rgba(42,167,255,.95), rgba(255,45,58,.85));
 }
 
-#pinGate .pin-msg{
+.pin-msg{
   min-height: 1.25rem;
   margin-top: .75rem;
   color: rgba(255,255,255,.82);
 }
 
-/* IMPORTANT: when unlocked, gate MUST not block clicks */
+/* critical: once hidden, cannot block clicks */
 #pinGate.hide{
   display:none !important;
   pointer-events:none !important;
 }
 
 /* ===========================
-   10) SMALL POLISH / RESPONSIVE
+   12) SMALL SCREEN TWEAKS
 =========================== */
 @media (max-width: 520px){
-  .hero{ min-height: 48vh; padding: 2.2rem 1.1rem; }
-  .hero-card{ padding: 1rem; }
-  .brand h1{ letter-spacing: .01em; }
-  #caption{ width: calc(100% - 2rem); text-align:center; }
+  .landing-inner{ padding: 1rem 1rem 1.1rem; }
+  .landing-sub{ font-size: .95rem; }
+  .album-bar{ padding: .8rem; }
+  .card img{ height: 240px; }
+  .caption{ width: calc(100% - 2rem); }
 }
+
 
