@@ -1,336 +1,410 @@
-// =====================
-// CONFIG
-// =====================
-const R2_BASE_URL = "https://pub-69c220e7c10141e18ac15b9cf428ef86.r2.dev";
-const WORKER_BASE_URL = "https://gallery-albums.swilliams2.workers.dev";
+/* =========================================================
+   Williams Family Gallery — app.js (FULL)
+   - Pages frontend
+   - Albums + items from Worker
+   - Media from R2 public domain
+   - Video posters auto-detected
+   - Lightbox + arrows + swipe
+   - Soft PIN gate
+========================================================= */
 
-const ALBUMS_URL = `${WORKER_BASE_URL}/albums`;
-const ALBUM_URL = (name) => `${WORKER_BASE_URL}/album?name=${encodeURIComponent(name)}`;
-const POSTER_UPLOAD_URL = `${WORKER_BASE_URL}/poster`;
+/* ===========================
+   CONFIG
+=========================== */
+const WORKER_BASE = "https://gallery-albums.swilliams2.workers.dev";
+const R2_PUBLIC_BASE = "https://pub-69c220e7c10141e18ac15b9cf428ef86.r2.dev";
 
-// Admin mode: visit site with ?admin=1
-const IS_ADMIN = new URLSearchParams(location.search).get("admin") === "1";
+// Soft PIN
+const SOFT_PIN = "64734";
+const PIN_STORAGE_KEY = "wf_gallery_unlocked_v1";
 
-// =====================
-// SOFT PIN (front-end only)
-// =====================
-const SOFT_PIN = "64734"; // <<< CHANGE THIS PIN
-const PIN_STORAGE_KEY = "williams_gallery_unlocked";
+// Hide these from album menu no matter what
+const HIDDEN_ALBUMS = new Set(["thumbs", "images", "index.json"]);
 
-function isUnlocked() {
-  return localStorage.getItem(PIN_STORAGE_KEY) === "1";
-}
-function unlockGallery() {
-  localStorage.setItem(PIN_STORAGE_KEY, "1");
-}
-function lockGallery() {
-  localStorage.removeItem(PIN_STORAGE_KEY);
-  location.reload();
-}
-
-// =====================
-// DOM
-// =====================
-const grid = document.getElementById("grid");
-const count = document.getElementById("count");
-
-const shuffleBtn = document.getElementById("shuffleBtn");
-const enterBtn = document.getElementById("enterBtn");
-
-const albumsEl = document.getElementById("albums");
-
-// Hero (Option 1)
-const heroEl = document.getElementById("hero");
-const albumNameEl = document.getElementById("albumName");
-const albumSubtitleEl = document.getElementById("albumSubtitle");
-const copyAlbumLinkBtn = document.getElementById("copyAlbumLinkBtn");
-
-// Lightbox
-const lightbox = document.getElementById("lightbox");
-const lightboxImg = document.getElementById("lightboxImg");
-const lightboxVideo = document.getElementById("lightboxVideo");
-const caption = document.getElementById("caption");
-const closeBtn = document.getElementById("closeBtn");
-const prevBtn = document.getElementById("prevBtn");
-const nextBtn = document.getElementById("nextBtn");
-
-// PIN Gate DOM
+/* ===========================
+   DOM
+=========================== */
 const pinGate = document.getElementById("pinGate");
 const pinForm = document.getElementById("pinForm");
 const pinInput = document.getElementById("pinInput");
 const pinMsg = document.getElementById("pinMsg");
 
-// =====================
-// STATE
-// =====================
-let allItems = [];
-let mediaItems = [];
-let currentIndex = -1;
+const enterBtn = document.getElementById("enterBtn");
+const shuffleBtn = document.getElementById("shuffleBtn");
+
+const albumNameEl = document.getElementById("albumName");
+const albumSubtitleEl = document.getElementById("albumSubtitle");
+const copyAlbumLinkBtn = document.getElementById("copyAlbumLinkBtn");
+
+const albumsEl = document.getElementById("albums");
+const gridEl = document.getElementById("grid");
+const countEl = document.getElementById("count");
+
+const lightbox = document.getElementById("lightbox");
+const lightboxImg = document.getElementById("lightboxImg");
+const lightboxVideo = document.getElementById("lightboxVideo");
+const closeBtn = document.getElementById("closeBtn");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const captionEl = document.getElementById("caption");
+
+/* ===========================
+   STATE
+=========================== */
+let albums = [];
 let currentAlbum = null;
-let adminToken = null;
+let items = [];           // {type, src, alt}
+let currentIndex = -1;
 
-// =====================
-// URL helpers (deep links)
-// =====================
-function getRequestedAlbumFromUrl() {
-  const u = new URL(location.href);
-  const a = u.searchParams.get("album");
-  return a ? a.trim() : null;
+/* ===========================
+   UTIL
+=========================== */
+const qs = (k) => new URLSearchParams(location.search).get(k);
+
+function normalizeAlbumName(a) {
+  return (a || "").trim();
 }
 
-function setAlbumInUrl(albumKey) {
-  const u = new URL(location.href);
-  u.searchParams.set("album", albumKey);
-  if (IS_ADMIN) u.searchParams.set("admin", "1");
-  history.replaceState({}, "", u.toString());
+function albumKeyFromName(name) {
+  // Worker uses actual folder names; URLs can be lower/encoded
+  // We'll treat query param as a case-insensitive match.
+  const wanted = (name || "").trim().toLowerCase();
+  const match = albums.find(a => a.toLowerCase() === wanted);
+  return match || null;
 }
 
-async function copyCurrentAlbumLink() {
-  if (!currentAlbum) return;
+function withCacheBust(url) {
+  const u = new URL(url);
+  u.searchParams.set("v", Date.now().toString());
+  return u.toString();
+}
 
-  const u = new URL(location.href);
-  u.searchParams.set("album", currentAlbum);
-  if (IS_ADMIN) u.searchParams.set("admin", "1");
+function workerUrl(path) {
+  return withCacheBust(`${WORKER_BASE}${path}`);
+}
 
-  const text = u.toString();
+function r2Url(key) {
+  // key like "family/photo.jpg" (no leading slash)
+  return `${R2_PUBLIC_BASE}/${key}`;
+}
 
-  try {
-    await navigator.clipboard.writeText(text);
-    alert("Album link copied ✅");
-  } catch {
-    prompt("Copy this album link:", text);
+function isVideoKey(key) {
+  return /\.(mp4|webm|mov)$/i.test(key);
+}
+
+function posterCandidatesFor(videoKey) {
+  // videoKey: "family/test.mp4"
+  const parts = videoKey.split("/");
+  const album = parts[0];
+  const file = parts[parts.length - 1];
+  const base = file.replace(/\.(mp4|webm|mov)$/i, "");
+
+  return [
+    `thumbs/${album}/${base}.jpg`,
+    `thumbs/${album}/${base}.webp`,
+    `${album}/thumbs/${base}.jpg`,
+    `${album}/thumbs/${base}.webp`,
+  ];
+}
+
+/* ===========================
+   PIN GATE
+=========================== */
+function isUnlocked() {
+  return localStorage.getItem(PIN_STORAGE_KEY) === "1";
+}
+
+function setUnlocked() {
+  localStorage.setItem(PIN_STORAGE_KEY, "1");
+}
+
+function hidePinGate() {
+  if (!pinGate) return;
+  pinGate.classList.add("hide");
+  pinGate.setAttribute("aria-hidden", "true");
+}
+
+function showPinError(msg) {
+  if (!pinMsg) return;
+  pinMsg.textContent = msg;
+}
+
+function setupPinGate() {
+  if (!pinGate) return;
+
+  if (isUnlocked()) {
+    hidePinGate();
+    init().catch((e) => console.error("INIT ERROR:", e));
+    return;
+  }
+
+  // focus input
+  setTimeout(() => pinInput?.focus(), 50);
+
+  pinForm?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const val = (pinInput?.value || "").trim();
+    if (val === SOFT_PIN) {
+      setUnlocked();
+      hidePinGate();
+      init().catch((e) => console.error("INIT ERROR:", e));
+    } else {
+      showPinError("Wrong passcode.");
+      if (pinInput) pinInput.value = "";
+      pinInput?.focus();
+    }
+  });
+}
+
+/* ===========================
+   FETCHING
+=========================== */
+async function fetchJson(url) {
+  const res = await fetch(url, { method: "GET" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return await res.json();
+}
+
+async function loadAlbums() {
+  const data = await fetchJson(workerUrl("/albums"));
+  const list = Array.isArray(data.albums) ? data.albums : [];
+
+  albums = list
+    .map(normalizeAlbumName)
+    .filter(Boolean)
+    .filter(a => !HIDDEN_ALBUMS.has(a.toLowerCase()));
+
+  // If you want alphabetical:
+  albums.sort((a, b) => a.localeCompare(b));
+
+  renderAlbumMenu();
+}
+
+async function loadAlbum(name) {
+  const safeName = normalizeAlbumName(name);
+  if (!safeName) throw new Error("Missing album name");
+
+  const data = await fetchJson(workerUrl(`/album?name=${encodeURIComponent(safeName)}`));
+  currentAlbum = data.title || safeName;
+  items = Array.isArray(data.items) ? data.items : [];
+
+  renderHero();
+  renderGrid();
+}
+
+/* ===========================
+   RENDER: HERO
+=========================== */
+function renderHero() {
+  if (albumNameEl) albumNameEl.textContent = currentAlbum || "Gallery";
+  if (albumSubtitleEl) {
+    const n = items.length;
+    albumSubtitleEl.textContent = n
+      ? `${n} item${n === 1 ? "" : "s"} in this album.`
+      : "No media found in this album yet.";
+  }
+  if (countEl) {
+    const n = items.length;
+    countEl.textContent = `${n} item${n === 1 ? "" : "s"}`;
   }
 }
 
-// =====================
-// HELPERS
-// =====================
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
+/* ===========================
+   RENDER: ALBUM MENU
+=========================== */
+function renderAlbumMenu() {
+  if (!albumsEl) return;
+  albumsEl.innerHTML = "";
 
-function isVideoItem(it) {
-  return it && it.type === "video";
-}
+  const currentParam = (qs("album") || "").toLowerCase();
 
-function rebuildMediaItems() {
-  mediaItems = (allItems || []).filter(
-    (it) => it && (it.type === "image" || it.type === "video") && it.src
-  );
-}
+  for (const a of albums) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "album-btn";
+    btn.textContent = a;
 
-function prettyAlbumName(key) {
-  const map = {
-    "pipers-quinceanera": "Piper’s Quinceañera",
-    "family": "Family",
-    "piper": "Piper",
-    "phoebe": "Phoebe"
-  };
-  return map[key] || key.replace(/[-_]/g, " ");
-}
+    if (a.toLowerCase() === currentParam || (!currentParam && a === albums[0])) {
+      btn.classList.add("active");
+    }
 
-// =====================
-// HERO metadata
-// =====================
-const albumMeta = {
-  family: {
-    subtitle: "The highlight reel: laughter, chaos, and the good kind of noise.",
-    accent: "42,167,255"
-  },
-  piper: {
-    subtitle: "Piper moments, captured mid-spark.",
-    accent: "255,45,58"
-  },
-  phoebe: {
-    subtitle: "Phoebe’s world: small moments with big energy.",
-    accent: "42,167,255"
-  },
-  "pipers-quinceanera": {
-    subtitle: "A night with a heartbeat. Dress. Lights. Memories.",
-    accent: "255,45,58"
-  }
-};
+    btn.addEventListener("click", () => {
+      setActiveAlbumButton(a);
+      navigateToAlbum(a);
+    });
 
-function updateHero(albumKey) {
-  const title = prettyAlbumName(albumKey);
-  const meta = albumMeta[albumKey] || { subtitle: "Memories, neatly framed.", accent: "42,167,255" };
-
-  if (albumNameEl) albumNameEl.textContent = title;
-  if (albumSubtitleEl) albumSubtitleEl.textContent = meta.subtitle;
-
-  document.documentElement.style.setProperty("--hero-accent", meta.accent);
-
-  if (heroEl) {
-    heroEl.classList.remove("pulse");
-    void heroEl.offsetWidth;
-    heroEl.classList.add("pulse");
+    albumsEl.appendChild(btn);
   }
 }
 
 function setActiveAlbumButton(name) {
-  if (!albumsEl) return;
-  [...albumsEl.querySelectorAll("button")].forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.album === name);
+  const wanted = (name || "").toLowerCase();
+  [...albumsEl.querySelectorAll(".album-btn")].forEach((b) => {
+    b.classList.toggle("active", b.textContent.trim().toLowerCase() === wanted);
   });
 }
 
-// =====================
-// GRID RENDER
-// =====================
-function render() {
-  if (!grid || !count) return;
-
-  grid.innerHTML = "";
-
-  mediaItems.forEach((it, idx) => {
-    const mediaUrl = `${R2_BASE_URL}/${it.src}`;
-    const posterUrl = isVideoItem(it) && it.poster ? `${R2_BASE_URL}/${it.poster}` : null;
-
-    const card = document.createElement("button");
-    card.className = "card";
-    card.type = "button";
-    card.setAttribute("aria-label", it.alt || `Open item ${idx + 1}`);
-
-    const img = document.createElement("img");
-    img.loading = "lazy";
-    img.src = posterUrl || mediaUrl;
-    img.alt = it.alt || "";
-
-    if (isVideoItem(it)) {
-      card.classList.add("is-video");
-      const badge = document.createElement("div");
-      badge.className = "play-badge";
-      badge.innerHTML = `<span class="play-triangle"></span>`;
-      card.appendChild(badge);
-    }
-
-    card.addEventListener("click", () => openLightbox(idx));
-
-    card.appendChild(img);
-    grid.appendChild(card);
-  });
-
-  const albumLabel = currentAlbum ? ` • ${prettyAlbumName(currentAlbum)}` : "";
-  const adminLabel = IS_ADMIN ? " • ADMIN" : "";
-  count.textContent = `${mediaItems.length} items${albumLabel}${adminLabel}`;
+function navigateToAlbum(name) {
+  const u = new URL(location.href);
+  u.searchParams.set("album", name.toLowerCase());
+  history.pushState({}, "", u.toString());
+  loadAlbum(name).catch(showAlbumError);
 }
 
-// =====================
-// LIGHTBOX
-// =====================
-function openLightbox(idx) {
-  if (!lightbox) return;
-  if (!mediaItems.length) return;
+/* ===========================
+   RENDER: GRID
+=========================== */
+function clearGrid() {
+  if (gridEl) gridEl.innerHTML = "";
+}
 
-  currentIndex = Math.max(0, Math.min(idx, mediaItems.length - 1));
-  const it = mediaItems[currentIndex];
-  const url = `${R2_BASE_URL}/${it.src}`;
+function showAlbumError(err) {
+  console.error(err);
+  clearGrid();
 
-  // Reset viewers
-  if (lightboxImg) {
-    lightboxImg.classList.remove("hide-img");
-    lightboxImg.src = "";
-    lightboxImg.alt = "";
-  }
-  if (lightboxVideo) {
-    lightboxVideo.classList.remove("show-video");
-    lightboxVideo.pause();
-    lightboxVideo.removeAttribute("src");
-    lightboxVideo.load();
-  }
+  if (albumNameEl) albumNameEl.textContent = "Album system failed to load.";
+  if (albumSubtitleEl) albumSubtitleEl.textContent = "Could not load albums. Check Worker URL + CORS.";
+  if (countEl) countEl.textContent = "—";
+}
 
-  // Show correct viewer
-  if (isVideoItem(it)) {
-    if (lightboxVideo) {
-      lightboxVideo.src = url;
-      lightboxVideo.classList.add("show-video");
-    }
-    if (lightboxImg) lightboxImg.classList.add("hide-img");
+function makeCard(item, index) {
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "card";
+  if (item.type === "video") card.classList.add("is-video");
+
+  // Thumbnail image (for images, this is the actual image; for video, poster)
+  const thumb = document.createElement("img");
+  thumb.alt = item.alt || "";
+
+  if (item.type === "image") {
+    thumb.src = r2Url(item.src);
   } else {
-    if (lightboxImg) {
-      lightboxImg.src = url;
-      lightboxImg.alt = it.alt || "";
-    }
+    // video: try poster candidates, fallback to the video itself (browser might show first frame)
+    const candidates = posterCandidatesFor(item.src).map(r2Url);
+    let attempt = 0;
+    thumb.src = candidates[attempt];
+
+    thumb.onerror = () => {
+      attempt++;
+      if (attempt < candidates.length) {
+        thumb.src = candidates[attempt];
+      } else {
+        // final fallback: try using the video as src (some browsers will still paint a frame in <img> = no, so use a generic look)
+        // We'll keep the last poster attempt; card will still show play badge.
+        // (If you want a custom fallback image later, tell me and I’ll add it.)
+      }
+    };
+
+    // play badge overlay
+    const badge = document.createElement("div");
+    badge.className = "play-badge";
+    const tri = document.createElement("div");
+    tri.className = "play-triangle";
+    badge.appendChild(tri);
+    card.appendChild(badge);
   }
 
-  if (caption) {
-    const label = it.alt ? it.alt : `Item ${currentIndex + 1}`;
-    const kind = isVideoItem(it) ? "Video" : "Photo";
-    caption.textContent = `${kind}: ${label}  •  ${currentIndex + 1} of ${mediaItems.length}`;
+  card.appendChild(thumb);
+
+  card.addEventListener("click", () => openLightbox(index));
+  return card;
+}
+
+function renderGrid() {
+  clearGrid();
+  if (!gridEl) return;
+
+  if (!items.length) {
+    const empty = document.createElement("div");
+    empty.style.opacity = "0.75";
+    empty.style.textAlign = "center";
+    empty.style.padding = "1.5rem 0";
+    empty.textContent = "No photos/videos in this album yet.";
+    gridEl.appendChild(empty);
+    return;
   }
+
+  items.forEach((it, i) => gridEl.appendChild(makeCard(it, i)));
+}
+
+/* ===========================
+   LIGHTBOX
+=========================== */
+function setCaption(text) {
+  if (captionEl) captionEl.textContent = text || "";
+}
+
+function showImage(srcKey, alt) {
+  lightboxVideo.pause();
+  lightboxVideo.removeAttribute("src");
+  lightboxVideo.load();
+
+  lightboxImg.style.display = "block";
+  lightboxVideo.style.display = "none";
+
+  lightboxImg.src = r2Url(srcKey);
+  lightboxImg.alt = alt || "";
+}
+
+function showVideo(srcKey) {
+  lightboxImg.removeAttribute("src");
+  lightboxImg.style.display = "none";
+
+  lightboxVideo.style.display = "block";
+  lightboxVideo.src = r2Url(srcKey);
+  lightboxVideo.load();
+}
+
+function openLightbox(index) {
+  currentIndex = index;
+  const item = items[currentIndex];
+  if (!item) return;
+
+  if (item.type === "video") showVideo(item.src);
+  else showImage(item.src, item.alt);
+
+  setCaption(item.alt || "");
 
   lightbox.classList.add("show");
   lightbox.setAttribute("aria-hidden", "false");
 }
 
 function closeLightbox() {
-  if (!lightbox) return;
-
   lightbox.classList.remove("show");
   lightbox.setAttribute("aria-hidden", "true");
 
-  if (lightboxImg) {
-    lightboxImg.src = "";
-    lightboxImg.alt = "";
-    lightboxImg.classList.remove("hide-img");
-  }
-
-  if (lightboxVideo) {
-    lightboxVideo.pause();
-    lightboxVideo.removeAttribute("src");
-    lightboxVideo.classList.remove("show-video");
-    lightboxVideo.load();
-  }
-
-  if (caption) caption.textContent = "";
-  currentIndex = -1;
+  // stop video
+  lightboxVideo.pause();
+  lightboxVideo.removeAttribute("src");
+  lightboxVideo.load();
 }
 
 function showPrev() {
-  if (!mediaItems.length) return;
-  if (currentIndex < 0) currentIndex = 0;
-  currentIndex = (currentIndex - 1 + mediaItems.length) % mediaItems.length;
+  if (!items.length) return;
+  currentIndex = (currentIndex - 1 + items.length) % items.length;
   openLightbox(currentIndex);
 }
-
 function showNext() {
-  if (!mediaItems.length) return;
-  if (currentIndex < 0) currentIndex = 0;
-  currentIndex = (currentIndex + 1) % mediaItems.length;
+  if (!items.length) return;
+  currentIndex = (currentIndex + 1) % items.length;
   openLightbox(currentIndex);
 }
 
-closeBtn?.addEventListener("click", (e) => { e.stopPropagation(); closeLightbox(); });
-prevBtn?.addEventListener("click", (e) => { e.stopPropagation(); showPrev(); });
-nextBtn?.addEventListener("click", (e) => { e.stopPropagation(); showNext(); });
-
-lightbox?.addEventListener("click", (e) => {
-  if (e.target === lightbox) closeLightbox();
-});
-
-document.addEventListener("keydown", (e) => {
-  if (!lightbox || !lightbox.classList.contains("show")) return;
-  if (e.key === "Escape") closeLightbox();
-  if (e.key === "ArrowLeft") showPrev();
-  if (e.key === "ArrowRight") showNext();
-});
-
-// Swipe support
+/* Swipe support (mobile) */
 let touchStartX = null;
-function attachSwipe(el) {
-  if (!el) return;
-  el.addEventListener("touchstart", (e) => {
+function setupSwipe() {
+  if (!lightbox) return;
+
+  lightbox.addEventListener("touchstart", (e) => {
+    if (!e.changedTouches?.length) return;
     touchStartX = e.changedTouches[0].clientX;
   }, { passive: true });
 
-  el.addEventListener("touchend", (e) => {
+  lightbox.addEventListener("touchend", (e) => {
     if (touchStartX === null) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const dx = touchEndX - touchStartX;
+    const endX = e.changedTouches?.[0]?.clientX ?? touchStartX;
+    const dx = endX - touchStartX;
     touchStartX = null;
 
     if (Math.abs(dx) < 40) return;
@@ -338,320 +412,99 @@ function attachSwipe(el) {
     else showNext();
   }, { passive: true });
 }
-attachSwipe(lightboxImg);
-attachSwipe(lightboxVideo);
 
-// =====================
-// WORKER FETCH
-// =====================
-async function loadAlbums() {
-  const res = await fetch(`${ALBUMS_URL}?v=${Date.now()}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Albums fetch failed: ${res.status}`);
-  const data = await res.json();
-  return data.albums || [];
+/* ===========================
+   LANDING ACTIONS
+=========================== */
+function scrollToAlbums() {
+  const el = document.querySelector(".album-bar") || albumsEl;
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function loadAlbum(name) {
-  const res = await fetch(`${ALBUM_URL(name)}&v=${Date.now()}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Album fetch failed: ${res.status}`);
-  return await res.json();
+function shuffleAlbum() {
+  if (!albums.length) return;
+  const pick = albums[Math.floor(Math.random() * albums.length)];
+  setActiveAlbumButton(pick);
+  navigateToAlbum(pick);
+  scrollToAlbums();
 }
 
-// =====================
-// ADMIN THUMBNAILS
-// =====================
-async function generatePosterBase64(videoUrl) {
-  const res = await fetch(videoUrl, { mode: "cors", cache: "no-store" });
-  if (!res.ok) throw new Error(`Video fetch failed (${res.status})`);
-  const blob = await res.blob();
-  const blobUrl = URL.createObjectURL(blob);
-
-  return new Promise((resolve, reject) => {
-    const v = document.createElement("video");
-    v.muted = true;
-    v.playsInline = true;
-    v.preload = "auto";
-    v.src = blobUrl;
-
-    const cleanup = () => {
-      try { URL.revokeObjectURL(blobUrl); } catch {}
-      v.pause();
-      v.removeAttribute("src");
-      v.load();
-    };
-
-    v.addEventListener("error", () => {
-      cleanup();
-      reject(new Error("Video could not be decoded for thumbnail generation."));
-    });
-
-    v.addEventListener("loadedmetadata", () => {
-      try {
-        const t = Math.max(0.1, Math.min(1.0, (v.duration || 1) * 0.1));
-        v.currentTime = t;
-      } catch (e) {
-        cleanup();
-        reject(e);
-      }
-    });
-
-    v.addEventListener("seeked", () => {
-      try {
-        const canvas = document.createElement("canvas");
-        const w = v.videoWidth || 1280;
-        const h = v.videoHeight || 720;
-        const maxW = 900;
-        const scale = Math.min(1, maxW / w);
-
-        canvas.width = Math.floor(w * scale);
-        canvas.height = Math.floor(h * scale);
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-        const base64 = dataUrl.split(",")[1];
-
-        cleanup();
-        resolve(base64);
-      } catch (e) {
-        cleanup();
-        reject(e);
-      }
-    });
-  });
-}
-
-async function uploadPoster(posterKey, bytesBase64) {
-  if (!adminToken) throw new Error("Missing admin token.");
-
-  const res = await fetch(POSTER_UPLOAD_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "authorization": `Bearer ${adminToken}`
-    },
-    body: JSON.stringify({
-      posterKey,
-      bytesBase64,
-      contentType: "image/jpeg"
-    })
-  });
-
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Poster upload failed (${res.status}): ${txt}`);
-  }
-}
-
-async function runAdminThumbnailGenerator() {
-  if (!adminToken) {
-    adminToken = prompt("ADMIN mode: Enter THUMBNAIL_TOKEN to generate video thumbnails:");
-    if (!adminToken) {
-      alert("Admin cancelled. No thumbnails generated.");
-      return;
-    }
-  }
-
-  if (!currentAlbum) {
-    alert("No album selected yet. Wait for albums to load, then try again.");
-    return;
-  }
-
-  const videos = (allItems || []).filter(it => it && it.type === "video" && it.src && it.poster);
-
-  if (!videos.length) {
-    alert("No videos found in this album.");
-    return;
-  }
-
-  count.textContent = `ADMIN: generating posters (${videos.length})…`;
-
-  let ok = 0;
-  let fail = 0;
-
-  for (const it of videos) {
-    try {
-      const videoUrl = `${R2_BASE_URL}/${it.src}`;
-      const base64 = await generatePosterBase64(videoUrl);
-      await uploadPoster(it.poster, base64);
-      ok++;
-    } catch (e) {
-      console.error("Poster failed for", it.src, e);
-      fail++;
-    }
-  }
-
-  const refreshed = await loadAlbum(currentAlbum);
-  allItems = refreshed.items || [];
-  rebuildMediaItems();
-  render();
-
-  count.textContent = `ADMIN: posters done (ok ${ok}, failed ${fail}) • ${prettyAlbumName(currentAlbum)}`;
-
-  if (fail > 0) {
-    alert(`Generated posters: ${ok}\nFailed: ${fail}\n\nIf failures happen, it's usually codec/CORS. MP4 (H.264) works best.`);
-  }
-}
-
-// =====================
-// INIT
-// =====================
-async function init() {
+/* ===========================
+   MISC
+=========================== */
+async function copyAlbumLink() {
+  const u = new URL(location.href);
+  if (currentAlbum) u.searchParams.set("album", currentAlbum.toLowerCase());
   try {
-    if (!count || !grid) return;
-
-    count.textContent = "Loading albums…";
-
-    // Enter button smooth scroll
-    enterBtn?.addEventListener("click", () => {
-      document.getElementById("albums")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-
-    // Copy link from hero
-    copyAlbumLinkBtn?.addEventListener("click", copyCurrentAlbumLink);
-
-    const albums = await loadAlbums();
-
-    if (!albumsEl) {
-      throw new Error("Missing #albums element in index.html.");
-    }
-
-    // Build album buttons
-    albumsEl.innerHTML = "";
-
-    // Add a copy link button in album bar too (optional)
-    const copyBtn = document.createElement("button");
-    copyBtn.className = "album-btn";
-    copyBtn.type = "button";
-    copyBtn.textContent = "Copy album link";
-    copyBtn.addEventListener("click", copyCurrentAlbumLink);
-    albumsEl.appendChild(copyBtn);
-
-    albums.forEach((a) => {
-      const btn = document.createElement("button");
-      btn.className = "album-btn";
-      btn.type = "button";
-      btn.dataset.album = a;
-      btn.textContent = prettyAlbumName(a);
-
-      btn.addEventListener("click", async () => {
-        count.textContent = "Loading…";
-        const data = await loadAlbum(a);
-
-        currentAlbum = a;
-        setAlbumInUrl(a);
-        setActiveAlbumButton(a);
-        updateHero(a);
-
-        allItems = data.items || [];
-        rebuildMediaItems();
-        render();
-
-        if (IS_ADMIN) {
-          const wants = confirm(`ADMIN mode is ON.\n\nGenerate/refresh video thumbnails for album: ${prettyAlbumName(a)} ?`);
-          if (wants) await runAdminThumbnailGenerator();
-        }
-      });
-
-      albumsEl.appendChild(btn);
-    });
-
-    // Choose initial album: ?album=..., else family, else first
-    const requested = getRequestedAlbumFromUrl();
-    const initial =
-      (requested && albums.includes(requested)) ? requested :
-      (albums.includes("family") ? "family" : albums[0]);
-
-    const data = await loadAlbum(initial);
-
-    currentAlbum = initial;
-    setAlbumInUrl(initial);
-    setActiveAlbumButton(initial);
-    updateHero(initial);
-
-    allItems = data.items || [];
-    rebuildMediaItems();
-    render();
-
-    if (IS_ADMIN) {
-      const wants = confirm(`ADMIN mode is ON.\n\nGenerate/refresh video thumbnails for album: ${prettyAlbumName(initial)} ?`);
-      if (wants) await runAdminThumbnailGenerator();
-    }
-  } catch (err) {
-    console.error("INIT ERROR:", err);
-    if (count) count.textContent = "Album system failed to load.";
-    if (grid) {
-      grid.innerHTML = `<div style="color:rgba(233,238,252,.75);padding:1rem;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(10,14,24,.35);">
-        Could not load albums. Check Worker URL + CORS.
-      </div>`;
-    }
+    await navigator.clipboard.writeText(u.toString());
+    if (albumSubtitleEl) albumSubtitleEl.textContent = "Album link copied to clipboard ✅";
+    setTimeout(renderHero, 1200);
+  } catch {
+    // fallback: prompt
+    window.prompt("Copy this album link:", u.toString());
   }
 }
 
-// Shuffle current album
-shuffleBtn?.addEventListener("click", () => {
-  allItems = shuffle([...allItems]);
-  rebuildMediaItems();
-  render();
-});
+function wireUI() {
+  closeBtn?.addEventListener("click", closeLightbox);
+  prevBtn?.addEventListener("click", showPrev);
+  nextBtn?.addEventListener("click", showNext);
 
-// =====================
-// PIN GATE WIRING
-// =====================
-function setupPinGate() {
-  if (!pinGate || !pinForm || !pinInput || !pinMsg) {
-    // If PIN gate HTML isn't present, just run app
-    init();
-    return;
-  }
-
-  // If already unlocked, hide gate and continue
-  if (isUnlocked()) {
-    pinGate.classList.add("hide");
-    pinGate.setAttribute("aria-hidden", "true");
-    init();
-    return;
-  }
-
-  // Otherwise, show gate and block scrolling behind it
-  document.body.style.overflow = "hidden";
-  pinInput.focus();
-
-  // enforce numeric-ish input only (optional)
-  pinInput.addEventListener("input", () => {
-    pinInput.value = pinInput.value.replace(/[^\d]/g, "").slice(0, 8);
+  // click backdrop closes (but don’t close when clicking media/buttons)
+  lightbox?.addEventListener("click", (e) => {
+    const t = e.target;
+    if (t === lightbox) closeLightbox();
   });
 
-  pinForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const val = (pinInput.value || "").trim();
+  window.addEventListener("keydown", (e) => {
+    if (!lightbox.classList.contains("show")) return;
+    if (e.key === "Escape") closeLightbox();
+    if (e.key === "ArrowLeft") showPrev();
+    if (e.key === "ArrowRight") showNext();
+  });
 
-    if (val === SOFT_PIN) {
-      unlockGallery();
-      pinGate.classList.add("hide");
-      pinGate.setAttribute("aria-hidden", "true");
-      document.body.style.overflow = "";
-      init();
-    } else {
-      pinMsg.textContent = "Nope. Try again.";
-      pinInput.value = "";
-      pinInput.focus();
-      pinGate.animate(
-        [
-          { transform: "translateX(0)" },
-          { transform: "translateX(-8px)" },
-          { transform: "translateX(8px)" },
-          { transform: "translateX(0)" }
-        ],
-        { duration: 240 }
-      );
-    }
+  setupSwipe();
+
+  enterBtn?.addEventListener("click", scrollToAlbums);
+  shuffleBtn?.addEventListener("click", shuffleAlbum);
+
+  copyAlbumLinkBtn?.addEventListener("click", copyAlbumLink);
+
+  window.addEventListener("popstate", () => {
+    const a = qs("album");
+    if (a) loadAlbum(albumKeyFromName(a) || a).catch(showAlbumError);
   });
 }
 
-// Start
+/* ===========================
+   INIT
+=========================== */
+async function init() {
+  wireUI();
+
+  await loadAlbums();
+
+  // Choose album
+  const fromUrl = qs("album");
+  const chosen = fromUrl
+    ? (albumKeyFromName(fromUrl) || normalizeAlbumName(fromUrl))
+    : (albums[0] || null);
+
+  if (!chosen) {
+    // no albums exist
+    if (albumNameEl) albumNameEl.textContent = "No albums found.";
+    if (albumSubtitleEl) albumSubtitleEl.textContent = "Create a folder in R2 and upload at least one image/video.";
+    if (countEl) countEl.textContent = "0 items";
+    return;
+  }
+
+  setActiveAlbumButton(chosen);
+  await loadAlbum(chosen);
+}
+
+/* Boot */
 setupPinGate();
+
 
 
 
