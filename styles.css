@@ -89,7 +89,7 @@ button{ font-family:inherit; }
   /* PNG background + readability overlay */
   background-image:
     linear-gradient(rgba(5,10,20,.70), rgba(5,10,20,.88)),
-    url("/assets/landing-bg.png");
+    url("/assets/landing-bg.webp");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
