@@ -232,23 +232,45 @@ button{ font-family:inherit; }
    6) SECTION TITLE ROW
 =========================== */
 .section-title{
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
   gap: 1rem;
   margin: .6rem 0 .75rem;
 }
 
+.section-title .hero{
+  grid-column: 1 / 4;           /* hero spans full row */
+  justify-content: center;
+  margin: 0;
+}
+
 .section-title h2{
-  margin:0;
+  grid-column: 2;               /* Featured on the right side */
+  justify-self: end;
+  margin: 0;
   font-size: 1.15rem;
-  letter-spacing:.02em;
+  letter-spacing: .02em;
 }
 
 #count{
-  margin:0;
+  grid-column: 3;               /* count on far right */
+  justify-self: start;
+  margin: 0;
   color: var(--muted);
-  font-size:.95rem;
+  font-size: .95rem;
+}
+
+/* On small screens: stack neatly */
+@media (max-width: 720px){
+  .section-title{
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .section-title .hero{ grid-column: 1; }
+  .section-title h2, #count{
+    justify-self: center;
+  }
 }
 
 /* ===========================
