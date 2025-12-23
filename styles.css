@@ -672,4 +672,53 @@ button{ font-family:inherit; }
   .caption{ width: calc(100% - 2rem); }
 }
 
+/* =========================================
+   ALBUM MENU: FORCE PRETTY BUTTONS ALWAYS
+   (works for <button> or <a>)
+========================================= */
+
+#albums{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.55rem;
+  justify-content:center;
+}
+
+/* If app.js created plain buttons/links without class */
+#albums button,
+#albums a{
+  appearance:none;
+  -webkit-appearance:none;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: rgba(233,238,252,.92);
+  padding: .52rem .82rem;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+
+#albums button:hover,
+#albums a:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.09);
+  border-color: rgba(42,167,255,.25);
+}
+
+/* Active state if app.js uses .active on button OR link */
+#albums .active{
+  border-color: rgba(42,167,255,.38) !important;
+  background: linear-gradient(135deg, rgba(42,167,255,.30), rgba(255,45,58,.22)) !important;
+}
+
+/* If app.js uses aria-current instead of .active */
+#albums [aria-current="page"]{
+  border-color: rgba(42,167,255,.38) !important;
+  background: linear-gradient(135deg, rgba(42,167,255,.30), rgba(255,45,58,.22)) !important;
+}
 
