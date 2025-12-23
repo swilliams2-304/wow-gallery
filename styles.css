@@ -537,3 +537,31 @@ body{
 .lightbox.active{
   display:flex !important;
 }
+/* ===========================
+   LIGHTBOX SIZE FIX
+=========================== */
+
+/* Container already centers content */
+#lightbox{
+  align-items:center;
+  justify-content:center;
+}
+
+/* Images inside lightbox */
+#lightbox img{
+  max-width: 92vw;
+  max-height: 92vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Videos inside lightbox */
+#lightbox video{
+  max-width: 92vw;
+  max-height: 92vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: black;
+}
