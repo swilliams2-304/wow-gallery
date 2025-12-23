@@ -532,3 +532,8 @@ body{
   display:none !important;
   pointer-events:none !important;
 }
+/* Lightbox open state (support both class names) */
+.lightbox.show,
+.lightbox.active{
+  display:flex !important;
+}
