@@ -96,17 +96,24 @@ function posterCandidatesFor(videoKey) {
   // videoKey: "family/test.mp4"
   const parts = videoKey.split("/");
   const album = parts[0];
-  const file = parts[parts.length - 1];
-  const base = file.replace(/\.(mp4|webm|mov)$/i, "");
+  const file = parts[parts.length - 1];     // "test.mp4"
+  const base = file.replace(/\.(mp4|webm|mov)$/i, ""); // "test"
 
+  // Try both naming conventions:
+  // 1) base.jpg (test.jpg)
+  // 2) file.ext.jpg (test.mp4.jpg)  <-- very common
   return [
     `thumbs/${album}/${base}.jpg`,
     `thumbs/${album}/${base}.webp`,
+    `thumbs/${album}/${file}.jpg`,
+    `thumbs/${album}/${file}.webp`,
+
     `${album}/thumbs/${base}.jpg`,
     `${album}/thumbs/${base}.webp`,
+    `${album}/thumbs/${file}.jpg`,
+    `${album}/thumbs/${file}.webp`,
   ];
 }
-
 /* ===========================
    PIN GATE
 =========================== */
